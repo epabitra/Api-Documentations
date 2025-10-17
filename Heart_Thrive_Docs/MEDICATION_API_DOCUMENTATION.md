@@ -198,7 +198,7 @@ Content-Type: application/json
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500mg",
   "dosageFrequency": "Weekly Twice",
   "daysOfWeek": ["Mon", "Wed"],
@@ -225,7 +225,7 @@ Content-Type: application/json
   "afternoon": false,
   "evening": false,
   "morningTime": "09:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "1 capsule",
   "dosageFrequency": "Daily",
   "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]

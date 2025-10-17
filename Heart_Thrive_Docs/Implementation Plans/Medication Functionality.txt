@@ -1,0 +1,202 @@
+Medication feature — simple, fresher-friendly story
+
+Below is a plain, step-by-step explanation of how the medication functionality should behave in the app. I’m avoiding any database talk — just the user flows, what the app does, and the important rules to handle edge cases.
+
+1) Actors & high level goal
+
+	Doctor: Prescribes medication to a patient (selects from list or adds a custom one).
+
+	Patient: Sees prescribed medications, follows schedule, marks doses as taken/missed, and views history/analytics.
+
+	System: Creates daily dose schedules from the prescription info, tracks intake, shows reminders and reports.
+
+2) Create / prescribe a medication (what happens when the doctor adds a med)
+
+	Doctor opens the medication library and picks a medication (or creates a custom medication if not found).
+
+	App shows medication details (name, brand, strength, form).
+
+	Doctor (or patient) fills in:
+
+		Start date and End date.
+
+		Medication periods — e.g. Morning, Afternoon, Evening. Each period can have a time: Morning → 9:00 AM, Evening → 8:00 PM. (Periods are multi-select.)
+
+		Intake pattern / frequency — e.g. DAILY, Weekly Once, Weekly Twice, or a custom pattern.
+
+		Days of week (if pattern is weekly): e.g. [Mon, Wed, Fri].
+
+		Before/After meal flag for each period (if needed).
+
+		Notes (instructions, dosage description).
+
+		On submit, the app creates the schedule for each day in the date range according to chosen periods, frequency, and days-of-week.
+
+		Example: Start = Sep 1, End = Sep 30, Days = Mon/Wed/Fri, Periods = Morning@9:00 & Evening@8:00 → the app creates dose entries for every Mon/Wed/Fri between Sep 1–30,
+		each with two times (9:00, 8:00).
+
+3) How the schedule works (user-facing)
+
+	The patient sees a list/calendar of upcoming doses (today, next 7 days, or full schedule).
+
+	For today the app lists all dose entries (time, med name, dose description, before/after meal).
+
+	Each dose entry has actions:
+
+		Mark as Taken (and optionally the taken time; default = now).
+
+		Mark as Missed (or it becomes missed automatically if time passes and not marked).
+
+		Snooze / Reschedule (small delay) — optional.
+
+		View Medication Info (opens the med details and instructions).
+
+		When a dose is taken, the app stores that intake record with timestamp and status.
+
+4) Intake tracking (how we know taken vs missed)
+
+	Every scheduled dose has a status: Pending → Taken / Missed.
+
+	If the patient taps Taken, the app records the time and marks it taken.
+
+	If the scheduled time passes and the patient did not mark it, the system can automatically mark as Missed (based on a configurable grace window), 
+	or leave it pending and allow manual marking later — define business rule.
+
+	The patient can correct mistakes (e.g., mark a past dose as Taken if they forgot to tap at the time).
+
+5) Viewing & filtering schedules and history
+
+	Provide filters:
+
+		Date range (Today, Last 7 days, Custom range).
+
+		Status (All / Taken / Missed / Pending).
+
+		Medication name.
+
+	Today view: All doses scheduled for the date — easy to see what’s left.
+
+	History view: See past days with status and timestamps; useful for adherence checks.
+
+	Future view: See upcoming doses until the end date.
+
+6) Editing a prescription (what must happen)
+
+	When user/doctor edits start/end dates, periods, or frequency:
+
+	If start/end date changed:
+
+		If the end date was shortened → remove scheduled doses that fall after the new end date (but keep historical intake records).
+
+		If the end date was extended → create new scheduled doses from the old end date+1 to the new end.
+
+	If medication periods changed (e.g., add Afternoon@2:00):
+
+		Add scheduled doses for the new period on relevant dates between start and end.
+
+		If a period is removed → remove pending scheduled doses for that period (do not delete past intake records).
+
+	If days-of-week or frequency changed:
+
+		Recompute the schedule for the whole date range: remove any pending schedule entries that no longer match and create new ones that match the new pattern.
+
+		When opening the Edit screen, show the original configuration (start/end, periods with times, frequency, selected weekdays, before/after meal) 
+		so user can see and change exactly what was configured.
+
+		Important: Never delete intake history (taken/missed records). Only remove future/pending schedule entries that are no longer valid.
+
+7) Handling special cases & validation
+
+	If a custom medication is entered (i.e., not in the library), allow quick create + use it in the same flow.
+
+	Validate that start date ≤ end date.
+
+	Validate that at least one period/time is supplied.
+
+	If frequency is weekly but no weekdays are selected → show error.
+
+	Support overlapping prescriptions: if the same medication is added twice with overlapping dates, show a warning or allow multiple prescriptions but indicate overlaps clearly.
+
+	Timezone / daylight saving: store times in a consistent way so schedule times don’t shift unexpectedly for the user.
+
+	Grace window: decide how long after scheduled time a dose can still be marked as taken (e.g., 2 hours).
+
+8) Notifications & reminders
+
+	Send push/reminder notifications at scheduled dose times (opt-in).
+
+	Optionally send a summary reminder in the morning with all day’s meds.
+
+	If a dose is missed, optionally send a follow-up notification after a grace period.
+
+9) Reporting / dashboard / weekly chart
+
+	Show a weekly adherence chart: e.g., bar for each day showing number of doses scheduled vs taken vs missed.
+
+	Provide simple KPIs:
+
+		Adherence % = (taken doses / scheduled doses) × 100 for a chosen period.
+
+		Streaks — consecutive days with full adherence (optional).
+
+		Allow export or sharing of history for doctor review (CSV or PDF).
+
+10) UX suggestions (how screens should feel)
+
+	Medication Library screen: searchable list; tapping an item shows details and “Prescribe” button.
+
+	Create Prescription screen: simple form with date pickers, multi-select periods that expand to set time and before/after meal, frequency dropdown, weekdays checkboxes.
+
+	Today screen: timeline of doses grouped by time slots (morning/afternoon/evening). Each item large tappable buttons for Taken / Missed.
+
+	History screen: calendar + list; tappable days with summary and drill-in to details.
+
+	Edit Prescription screen: show current config and explain consequences (e.g., “If you shorten the end date, future schedules will be removed”).
+
+11) Example flow (concrete)
+
+	Doctor prescribes “Amox 500mg” starting Oct 1, ending Oct 14.
+
+	Periods selected: Morning@9:00, Evening@8:00. Frequency: DAILY.
+
+	App generates 14 days × 2 times = 28 scheduled dose entries.
+
+	On Oct 3 patient opens Today view: shows two entries (9:00 and 8:00).
+
+	At 9:05 patient taps Taken → system marks entry as taken with timestamp.
+
+	At 8:00 patient misses the dose and forgets → after 2 hours the system marks it Missed or shows as missed next day depending on rule.
+
+	On Oct 10 doctor extends end date to Oct 21 → system generates additional schedule entries for Oct 15–21 accordingly.
+
+12) Summary — minimal checklist for implementation team
+
+	UI: Create / Edit / Today / History screens with clear inputs.
+
+	Schedule engine: given start/end, periods (with times), frequency, and weekdays → generate per-day dose entries.
+
+	Intake actions: Taken / Missed / Snooze, with timestamps.
+
+	Editing rules: remove only future/pending entries that no longer apply; keep history.
+
+	Filters & reports: date-range filter, status filter, weekly adherence chart.
+
+	Notifications: remind at dose times, with configurable grace window.
+
+	Validation: ensure valid date ranges and required fields.
+	
+
+My Medication Functionalist
+============================================================
+We have PatientMedicationSchedule.java  and related table, so i want to create a same table as 
+PatientMedicationMenuList there i want to keep the same informations like PatientMedicationSchedule table,
+ but there i will add the record while user adding a medication if he select add to my medication 
+ then we will keep the record here as well one more column we will keep that is patientId so that
+ we can easlily get patient related all the medication list specific to the user.
+
+if he want to update anything then also he can easily update the records, so please create a similar table 
+for me and please prepare the script also what i want to execute.
+
+please don't implment anything for now, give me the plan as well show me the codes what you want to change 
+then we will proceed for implementation.
+

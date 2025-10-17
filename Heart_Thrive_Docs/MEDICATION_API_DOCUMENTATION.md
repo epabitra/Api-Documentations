@@ -160,6 +160,7 @@ You can either:
 | afternoonTime | Time | No** | Afternoon dose time | "14:00:00" |
 | eveningTime | Time | No** | Evening dose time | "20:00:00" |
 | isAfterMeal | Boolean | No | Take after meal? | true |
+| isAfterMeal | Boolean | No | Take after meal? | true |
 | doseDescription | String | No | Dosage amount | "500mg" |
 | dosageFrequency | String | No | How often to take | "Twice Daily" |
 | daysOfWeek | Array | No | Which days to take | ["Mon", "Wed", "Fri"] |

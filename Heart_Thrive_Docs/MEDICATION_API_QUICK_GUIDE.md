@@ -56,7 +56,7 @@
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500mg",
   "dosageFrequency": "Twice Daily",
   "daysOfWeek": ["Mon", "Wed", "Fri"],
@@ -76,7 +76,7 @@
   "endDate": "2025-11-12",
   "morning": true,
   "morningTime": "08:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "1 tablet",
   "dosageFrequency": "Once Daily",
   "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri"]

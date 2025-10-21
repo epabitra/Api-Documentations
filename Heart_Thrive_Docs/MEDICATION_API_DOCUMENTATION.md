@@ -1518,14 +1518,14 @@ Calculate medication adherence statistics for any time period. This endpoint:
 ### Filter Logic
 
 | Time Slot Filters | Behavior |
-|||------------------|----------|
+|------------------|----------|
 | All null | Calculate for **ALL** time slots combined |
 | isMorning=true | Calculate for **MORNING** only |
 | isMorning=true, isEvening=true | Calculate for **MORNING + EVENING** only |
 | All true | Calculate for all slots (same as no filter) |
 
 | Medication Breakdown | Behavior |
-|||---------------------|----------|
+|---------------------|----------|
 | null or false | medicationBreakdown is **null** (not calculated) |
 | true | medicationBreakdown **populated** with per-med stats |
 

@@ -1,8 +1,8 @@
 # Medication API - Quick Reference Guide
 
-## 🚀 Seventeen Powerful APIs
+## 🚀 Eleven Powerful APIs
 
-### 1. Search → 2. Add (+Menu) → 3. View List → 4. View Schedule → 5. Track Intake → 6. View Stats → 7. Upcoming → 8. Missed → 9. Get for Edit → 10. Update Schedule → 11. Delete Schedule → 12. Menu List (6 endpoints)
+### 1. Search → 2. Add → 3. View List → 4. View Schedule → 5. Track Intake → 6. View Stats → 7. Upcoming → 8. Missed → 9. Get for Edit → 10. Update Schedule → 11. Delete Schedule
 
 ---
 
@@ -56,15 +56,12 @@
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "afterMeal": true,
+  "isAfterMeal": true,
   "doseDescription": "500mg",
   "dosageFrequency": "Twice Daily",
-  "daysOfWeek": ["Mon", "Wed", "Fri"],
-  "isAddToMyMedication": true
+  "daysOfWeek": ["Mon", "Wed", "Fri"]
 }
 ```
-
-💡 **Tip:** Set `isAddToMyMedication: true` to save this to your menu list!
 
 **Input (Creating New Medication):**
 ```json
@@ -76,7 +73,7 @@
   "endDate": "2025-11-12",
   "morning": true,
   "morningTime": "08:00:00",
-  "afterMeal": true,
+  "isAfterMeal": true,
   "doseDescription": "1 tablet",
   "dosageFrequency": "Once Daily",
   "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri"]
@@ -585,124 +582,15 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-## 1️⃣2️⃣ My Medication Menu List
-
-**What it does:** Save and manage your frequently used medication configurations for quick reference.
-
-**6 Endpoints Available:**
-
-### 📋 Get Menu List
-**URL:** `GET /api/medications/menu`  
-**Auth:** ✅ Required  
-
-**Output:**
-```json
-{
-  "success": true,
-  "message": "Found 2 medication(s) in menu",
-  "data": [
-    {
-      "menuUuid": "550e8400-...",
-      "medicationUuid": "650e8400-...",
-      "medicationName": "Aspirin",
-      "medicationBrand": "Bayer",
-      "doseDescription": "500mg",
-      "intakePattern": "Twice Daily",
-      "doseTime": "Morning, Evening",
-      "morningTime": "08:00:00",
-      "eveningTime": "20:00:00",
-      "daysOfWeek": "mon,tue,wed,thu,fri",
-      "startDate": "2025-10-01",
-      "endDate": "2025-12-31",
-      "isFavorite": true,
-      "usageCount": 5
-    }
-  ]
-}
-```
-
-**Use when:** View all your saved medication configurations
-
----
-
-### ⭐ Get Favorites
-**URL:** `GET /api/medications/menu/favorites`  
-**Auth:** ✅ Required  
-
-**Output:** Same as menu list, but favorites only
-
-**Use when:** Quick access to most important medications
-
----
-
-### 🔍 Search Menu
-**URL:** `GET /api/medications/menu/search?medicationName=aspirin`  
-**Auth:** ✅ Required  
-
-**Use when:** Find specific medication in your menu
-
----
-
-### ✏️ Update Menu Item
-**URL:** `PUT /api/medications/menu/{uuid}`  
-**Auth:** ✅ Required  
-
-**Input:**
-```json
-{
-  "doseDescription": "1000mg",
-  "notes": "Dosage increased"
-}
-```
-
-**Use when:** Update saved configuration (dosage changed, etc.)
-
----
-
-### 💫 Toggle Favorite
-**URL:** `POST /api/medications/menu/{uuid}/toggle-favorite`  
-**Auth:** ✅ Required  
-
-**Use when:** Mark/unmark as favorite
-
----
-
-### 🗑️ Delete Menu Item
-**URL:** `DELETE /api/medications/menu/{uuid}`  
-**Auth:** ✅ Required  
-
-**Use when:** Remove from menu list (doesn't affect schedules)
-
----
-
-**Key Features:**
-- ✅ Saves complete medication configuration including dates
-- ✅ View all saved medications in one place
-- ✅ See what dates you used last time (reference)
-- ✅ Mark favorites for quick access
-- ✅ Update configurations when they change
-- ✅ **Secure:** Only UUIDs returned (no internal IDs)
-
-**How to Save to Menu:**
-```json
-POST /api/medications/add
-{
-  ...all fields...
-  "isAddToMyMedication": true  ← Add this!
-}
-```
-
----
-
 ## 📋 Quick Comparison
 
-| Feature | Search | Add | My Meds | Schedule | Track | Stats | Menu | Favorites | Update Menu | Delete Menu |
-|---------|--------|-----|---------|----------|-------|-------|------|-----------|-------------|-------------|
-| **Purpose** | Find meds | Add+Save | View active | Daily doses | Mark taken | Adherence | Saved list | Top meds | Edit saved | Remove saved |
-| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Method** | POST | POST | POST | POST | POST | POST | GET | GET | PUT | DELETE |
-| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Reference | Favorites | Updated | Success |
-| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | Reference | Quick access | Update config | Cleanup |
+| Feature | Search | Add | My Meds | Schedule | Track | Stats | Upcoming | Missed | Get Edit | Update | Delete |
+|---------|--------|-----|---------|----------|-------|-------|----------|--------|----------|--------|--------|
+| **Purpose** | Find meds | Add schedule | View active | Daily doses | Mark taken | Adherence | Next doses | Missed list | Prep edit | Save changes | Remove |
+| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Method** | POST | POST | POST | POST | POST | POST | POST | POST | GET | PUT | DELETE |
+| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Next list | Missed list | Schedule data | Updated | Success |
+| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | What's next | Adherence | Form pre-fill | Edit schedule | Stop med |
 
 ---
 
@@ -906,20 +794,8 @@ POST /api/medications/add
 
 ### isAddToMyMedication
 - Used in /add endpoint
-- true = Save medication configuration to your menu list
-- false/null = Don't save to menu (schedule only)
-- Saves complete config including dates for future reference
-
-### menuUuid
-- Returned in menu list responses
-- Use to identify specific menu items
-- Use with PUT /menu/{uuid} to update
-- Use with DELETE /menu/{uuid} to remove
-
-### medicationUuid  
-- Returned in menu list (fetched from medication table)
-- References the actual medication
-- Can be used to add medication again if needed
+- Reserved for future use (currently not functional)
+- Planned feature: Save medication configuration for quick reference
 
 ---
 
@@ -936,14 +812,6 @@ POST /api/medications/add
 - Empty body `{}` shows everything
 - Date filter needs both fromDate and toDate
 - Time slot filters use AND logic (all selected must match)
-
-### For My Medication Menu:
-- Set `isAddToMyMedication: true` when adding to save configuration
-- Menu list is for **reference only** (doesn't auto-fill forms)
-- Deleting from menu **doesn't** delete schedules (separate lists)
-- Only UUIDs are returned (secure, no internal IDs)
-- Favorites provide quick access to important medications
-- Update menu items when your medication configuration changes
 
 ### General:
 - All POST requests need `Content-Type: application/json` header
@@ -988,25 +856,13 @@ POST /api/medications/add
 **Problem:** Deleted schedule by mistake  
 **Solution:** Contact system administrator. API doesn't support restoration, but admin may be able to reactivate the schedule from the database.
 
-**Problem:** Menu list shows all null values  
-**Solution:** This was a bug that has been fixed. Rebuild application with latest code. Menu should return complete medication details with UUIDs.
-
-**Problem:** Want to save medication for future reference  
-**Solution:** When adding medication, set `isAddToMyMedication: true`. The complete configuration will be saved to your menu list.
-
-**Problem:** Can't find medication in menu list  
-**Solution:** Use GET `/menu/search?medicationName=X` to search within your menu. Or check if medication was added with `isAddToMyMedication: false`.
-
-**Problem:** Deleted menu item but schedule still active  
-**Solution:** This is expected behavior. Menu list and schedules are separate. Deleting from menu doesn't affect your active schedules.
-
 ---
 
 ## 📞 Quick Help
 
 **Need to:**
 - Find a medication? → Use `/list`
-- Add medication to schedule? → Use `/add` (add `isAddToMyMedication: true` to save to menu)
+- Add medication to schedule? → Use `/add`
 - See your medications? → Use `/my-medications`
 - See daily schedule? → Use `/schedule-list`
 - Mark medication as taken? → Use `/track-intake`
@@ -1015,10 +871,6 @@ POST /api/medications/add
 - Review missed medications? → Use `/missed-schedules`
 - Edit a medication schedule? → Use `/schedule/{uuid}` then `/edit-schedule`
 - Delete/stop a medication? → Use `/schedule/{uuid}` DELETE (preserves intake history)
-- View saved medications? → Use `/menu` (reference list)
-- Mark favorites? → Use `/menu/{uuid}/toggle-favorite`
-- Update saved config? → Use `/menu/{uuid}` PUT
-- Search your menu? → Use `/menu/search?medicationName=X`
 
 ---
 
@@ -1067,15 +919,6 @@ POST /api/medications/add
 - Cannot be restored via API (contact admin if needed)
 - Use DELETE or UPDATE endDate - both preserve history, choose based on preference
 
-### For My Medication Menu List:
-- **Always** set `isAddToMyMedication: true` for frequently used medications
-- Menu shows **complete history** including dates you used last time
-- Mark favorites for quick access to important medications
-- Update menu items when dosages or timing changes
-- Menu and schedules are **separate** - deleting from menu doesn't affect schedules
-- **Security:** Only UUIDs returned, no internal IDs exposed
-- Use search to find specific medications in your menu quickly
-
 ---
 
 ## 🎯 Complete Workflow Example
@@ -1114,22 +957,11 @@ POST /api/medications/add
 21. Schedule removed, intake history preserved
 22. Done! No more future doses, medical records intact
 
-**Use My Medication Menu List:**
-23. Add Aspirin with isAddToMyMedication=true
-24. System saves to schedule AND menu list
-25. Later: GET /api/medications/menu
-26. See: Aspirin (500mg, Morning/Evening, Oct-Dec) with usage count
-27. Mark as favorite: POST /menu/{uuid}/toggle-favorite
-28. View favorites: GET /api/medications/menu/favorites
-29. Update dosage: PUT /menu/{uuid} {"doseDescription": "1000mg"}
-30. Use as reference when adding medication again
-31. Done! Personal medication reference list maintained
-
 ---
 
-**Version:** 2.3  
-**Last Updated:** October 16, 2025  
-**New in 2.3:** Added My Medication Menu List feature (6 endpoints) - Save and manage frequently used medication configurations; Added `isAddToMyMedication` to `/add` endpoint; Secure UUID-only responses  
+**Version:** 2.4  
+**Last Updated:** October 21, 2025  
+**New in 2.4:** Removed My Medication Menu List feature (deprecated); `isAddToMyMedication` field reserved for future use  
 **New in 2.2:** Added DELETE `/schedule/{uuid}` endpoint  
 **New in 2.1:** Added schedule editing endpoints - GET `/schedule/{uuid}` and PUT `/edit-schedule`  
 **New in 2.0:** Added Upcoming Schedules and Missed Schedules endpoints

@@ -570,15 +570,15 @@ Retrieve a comprehensive schedule list for your medications within a specific da
 
 ### Request Body
 
-|| Field | Type | Required | Description | Example |
-||-------|------|----------|-------------|---------|
-|| fromDate | String | Yes | Start date in dd-MM-yyyy or yyyy-MM-dd format | "10-10-2025" |
-|| toDate | String | Yes | End date in dd-MM-yyyy or yyyy-MM-dd format | "15-10-2025" |
-|| timezone | String | Yes | User timezone (IANA timezone) | "Asia/Kolkata" |
-|| medicationName | String | No | Filter by medication name (partial match, case-insensitive) | "Aspirin" |
-|| isMorning | Boolean | No | Filter for morning time slot only | true |
-|| isAfternoon | Boolean | No | Filter for afternoon time slot only | true |
-|| isEvening | Boolean | No | Filter for evening time slot only | true |
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| fromDate | String | Yes | Start date in dd-MM-yyyy or yyyy-MM-dd format | "10-10-2025" |
+| toDate | String | Yes | End date in dd-MM-yyyy or yyyy-MM-dd format | "15-10-2025" |
+| timezone | String | Yes | User timezone (IANA timezone) | "Asia/Kolkata" |
+| medicationName | String | No | Filter by medication name (partial match, case-insensitive) | "Aspirin" |
+| isMorning | Boolean | No | Filter for morning time slot only | true |
+| isAfternoon | Boolean | No | Filter for afternoon time slot only | true |
+| isEvening | Boolean | No | Filter for evening time slot only | true |
 
 **Filter Behavior:**
 - **Time Slots:** If NO time slot filters provided → Returns ALL time slots. If ANY filter provided → Returns ONLY matching time slots.
@@ -586,47 +586,47 @@ Retrieve a comprehensive schedule list for your medications within a specific da
 
 ### Response Structure
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| success | Boolean | Always true for successful requests |
-|| message | String | Summary (e.g., "Found 18 schedule(s) for 3 medication(s)") |
-|| data | Object | Schedule list response object |
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Summary (e.g., "Found 18 schedule(s) for 3 medication(s)") |
+| data | Object | Schedule list response object |
 
 ### Response Data Object
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| fromDate | Date | Parsed start date (YYYY-MM-DD) |
-|| toDate | Date | Parsed end date (YYYY-MM-DD) |
-|| timezone | String | User timezone from request |
-|| totalSchedules | Integer | Total number of schedule entries |
-|| totalMedications | Integer | Number of unique medications |
-|| schedulesByDate | Object | Map of dates to schedule entries (null if single day) |
-|| allSchedules | Array | Flat list of all schedule entries |
+| Field | Type | Description |
+|-------|------|-------------|
+| fromDate | Date | Parsed start date (YYYY-MM-DD) |
+| toDate | Date | Parsed end date (YYYY-MM-DD) |
+| timezone | String | User timezone from request |
+| totalSchedules | Integer | Total number of schedule entries |
+| totalMedications | Integer | Number of unique medications |
+| schedulesByDate | Object | Map of dates to schedule entries (null if single day) |
+| allSchedules | Array | Flat list of all schedule entries |
 
 ### Schedule Entry Object
 
 Each entry in `allSchedules` array contains:
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| date | Date | Date for this schedule entry |
-|| dayOfWeek | String | Day name (e.g., "MONDAY", "FRIDAY") |
-|| patientMedicationUuid | String | Unique identifier for patient medication |
-|| medicationName | String | Medication name |
-|| medicationBrand | String | Brand name |
-|| medicationForm | String | Form (Tablet, Capsule, etc.) |
-|| medicationStrength | String | Strength (e.g., "500mg") |
-|| scheduleUuid | String | Schedule unique identifier |
-|| doseDescription | String | Dosage amount |
-|| quantity | String | Quantity (same as doseDescription) |
-|| isAfterMeal | Boolean | Take after meal? |
-|| intakePattern | String | Pattern (DAILY, WEEKLY_ONCE, etc.) |
-|| daysOfWeek | String | Days to take (e.g., "mon,wed,fri") |
-|| timeSlot | String | Time slot (MORNING, AFTERNOON, EVENING) |
-|| scheduledTime | Time | Scheduled time for this slot (HH:mm:ss) |
-|| isTaken | Boolean | Was this dose taken? |
-|| intakeUuid | String | UUID of intake record (if taken) |
+| Field | Type | Description |
+|-------|------|-------------|
+| date | Date | Date for this schedule entry |
+| dayOfWeek | String | Day name (e.g., "MONDAY", "FRIDAY") |
+| patientMedicationUuid | String | Unique identifier for patient medication |
+| medicationName | String | Medication name |
+| medicationBrand | String | Brand name |
+| medicationForm | String | Form (Tablet, Capsule, etc.) |
+| medicationStrength | String | Strength (e.g., "500mg") |
+| scheduleUuid | String | Schedule unique identifier |
+| doseDescription | String | Dosage amount |
+| quantity | String | Quantity (same as doseDescription) |
+| isAfterMeal | Boolean | Take after meal? |
+| intakePattern | String | Pattern (DAILY, WEEKLY_ONCE, etc.) |
+| daysOfWeek | String | Days to take (e.g., "mon,wed,fri") |
+| timeSlot | String | Time slot (MORNING, AFTERNOON, EVENING) |
+| scheduledTime | Time | Scheduled time for this slot (HH:mm:ss) |
+| isTaken | Boolean | Was this dose taken? |
+| intakeUuid | String | UUID of intake record (if taken) |
 
 ### Example Request 1: Basic Date Range (No Filters)
 
@@ -923,11 +923,11 @@ Each medication schedule can have multiple time slots enabled:
 
 For each schedule entry, the system checks the `patient_medication_intake` table:
 
-|| Scenario | isTaken | intakeUuid |
-||----------|---------|------------|
-|| No intake record exists | `false` | `null` |
-|| Intake record exists, time slot flag = true | `true` | UUID string |
-|| Intake record exists, time slot flag = false | `false` | `null` |
+| Scenario | isTaken | intakeUuid |
+|----------|---------|------------|
+| No intake record exists | `false` | `null` |
+| Intake record exists, time slot flag = true | `true` | UUID string |
+| Intake record exists, time slot flag = false | `false` | `null` |
 
 **Example:** You took the morning dose but not the evening dose:
 - Morning entry: `isTaken: true, intakeUuid: "abc-123"`
@@ -1219,42 +1219,42 @@ Record medication intake for adherence tracking. This endpoint:
 
 ### Request Body
 
-|| Field | Type | Required | Description | Example |
-||-------|------|----------|-------------|---------|
-|| scheduleUuid | String | Yes | Schedule UUID from schedule-list response | "550e8400-..." |
-|| date | String | Yes | Date of intake (dd-MM-yyyy or yyyy-MM-dd) | "14-10-2025" |
-|| timeSlot | String | Yes | Time slot (MORNING, AFTERNOON, EVENING) | "MORNING" |
-|| isTaken | Boolean | Yes | Mark as taken (true) or not taken (false) | true |
-|| timezone | String | Yes | User timezone | "Asia/Kolkata" |
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| scheduleUuid | String | Yes | Schedule UUID from schedule-list response | "550e8400-..." |
+| date | String | Yes | Date of intake (dd-MM-yyyy or yyyy-MM-dd) | "14-10-2025" |
+| timeSlot | String | Yes | Time slot (MORNING, AFTERNOON, EVENING) | "MORNING" |
+| isTaken | Boolean | Yes | Mark as taken (true) or not taken (false) | true |
+| timezone | String | Yes | User timezone | "Asia/Kolkata" |
 
 ### Response
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| success | Boolean | Always true for successful requests |
-|| message | String | User-friendly message describing the action |
-|| data | Object | Intake tracking response object |
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | User-friendly message describing the action |
+| data | Object | Intake tracking response object |
 
 ### Response Data Object
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| intakeUuid | String | UUID of the intake record |
-|| intakeDate | Date | Date of intake |
-|| scheduleUuid | String | Schedule UUID |
-|| medicationName | String | Medication name |
-|| medicationBrand | String | Brand name |
-|| timeSlot | String | Time slot that was updated |
-|| isTaken | Boolean | Current status after update |
-|| takenAtTime | Timestamp | When it was marked as taken (UTC) |
-|| isMorning | Boolean | Morning slot status |
-|| isAfternoon | Boolean | Afternoon slot status |
-|| isEvening | Boolean | Evening slot status |
-|| morningTime | Timestamp | Morning taken timestamp |
-|| afternoonTime | Timestamp | Afternoon taken timestamp |
-|| eveningTime | Timestamp | Evening taken timestamp |
-|| operation | String | "CREATED" or "UPDATED" |
-|| message | String | Success message |
+| Field | Type | Description |
+|-------|------|-------------|
+| intakeUuid | String | UUID of the intake record |
+| intakeDate | Date | Date of intake |
+| scheduleUuid | String | Schedule UUID |
+| medicationName | String | Medication name |
+| medicationBrand | String | Brand name |
+| timeSlot | String | Time slot that was updated |
+| isTaken | Boolean | Current status after update |
+| takenAtTime | Timestamp | When it was marked as taken (UTC) |
+| isMorning | Boolean | Morning slot status |
+| isAfternoon | Boolean | Afternoon slot status |
+| isEvening | Boolean | Evening slot status |
+| morningTime | Timestamp | Morning taken timestamp |
+| afternoonTime | Timestamp | Afternoon taken timestamp |
+| eveningTime | Timestamp | Evening taken timestamp |
+| operation | String | "CREATED" or "UPDATED" |
+| message | String | Success message |
 
 ### Logic Explained
 
@@ -1505,67 +1505,67 @@ Calculate medication adherence statistics for any time period. This endpoint:
 
 ### Request Body
 
-|| Field | Type | Required | Description | Example |
-||-------|------|----------|-------------|---------|
-|| fromDate | String | Yes | Start date (dd-MM-yyyy or yyyy-MM-dd) | "01-10-2025" |
-|| toDate | String | Yes | End date (dd-MM-yyyy or yyyy-MM-dd) | "07-10-2025" |
-|| timezone | String | Yes | User timezone | "Asia/Kolkata" |
-|| isMorning | Boolean | No | Include only morning slots in stats | true |
-|| isAfternoon | Boolean | No | Include only afternoon slots in stats | true |
-|| isEvening | Boolean | No | Include only evening slots in stats | true |
-|| isMedicationBreakdownRequired | Boolean | No | Include per-medication breakdown | true |
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| fromDate | String | Yes | Start date (dd-MM-yyyy or yyyy-MM-dd) | "01-10-2025" |
+| toDate | String | Yes | End date (dd-MM-yyyy or yyyy-MM-dd) | "07-10-2025" |
+| timezone | String | Yes | User timezone | "Asia/Kolkata" |
+| isMorning | Boolean | No | Include only morning slots in stats | true |
+| isAfternoon | Boolean | No | Include only afternoon slots in stats | true |
+| isEvening | Boolean | No | Include only evening slots in stats | true |
+| isMedicationBreakdownRequired | Boolean | No | Include per-medication breakdown | true |
 
 ### Filter Logic
 
-|| Time Slot Filters | Behavior |
+| Time Slot Filters | Behavior |
 |||------------------|----------|
-|| All null | Calculate for **ALL** time slots combined |
-|| isMorning=true | Calculate for **MORNING** only |
-|| isMorning=true, isEvening=true | Calculate for **MORNING + EVENING** only |
-|| All true | Calculate for all slots (same as no filter) |
+| All null | Calculate for **ALL** time slots combined |
+| isMorning=true | Calculate for **MORNING** only |
+| isMorning=true, isEvening=true | Calculate for **MORNING + EVENING** only |
+| All true | Calculate for all slots (same as no filter) |
 
-|| Medication Breakdown | Behavior |
+| Medication Breakdown | Behavior |
 |||---------------------|----------|
-|| null or false | medicationBreakdown is **null** (not calculated) |
-|| true | medicationBreakdown **populated** with per-med stats |
+| null or false | medicationBreakdown is **null** (not calculated) |
+| true | medicationBreakdown **populated** with per-med stats |
 
 ### Response
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| success | Boolean | Always true for successful requests |
-|| message | String | Summary with key metrics |
-|| data | Object | Statistics response object |
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Summary with key metrics |
+| data | Object | Statistics response object |
 
 ### Response Data Object
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| fromDate | Date | Start date (YYYY-MM-DD) |
-|| toDate | Date | End date (YYYY-MM-DD) |
-|| timezone | String | User timezone |
-|| totalDays | Integer | Number of days in period |
-|| includedTimeSlots | Array | Time slots included in stats |
-|| totalMedications | Integer | Number of unique medications |
-|| totalScheduled | Integer | Total doses scheduled |
-|| totalTaken | Integer | Doses marked as taken |
-|| totalNotTaken | Integer | Doses not taken (includes future + missed) |
-|| totalMissed | Integer | Doses missed (time passed but not taken) |
-|| overallAdherencePercentage | Decimal | Adherence % (0-100) |
-|| medicationBreakdown | Array | Per-medication stats (null if not requested) |
+| Field | Type | Description |
+|-------|------|-------------|
+| fromDate | Date | Start date (YYYY-MM-DD) |
+| toDate | Date | End date (YYYY-MM-DD) |
+| timezone | String | User timezone |
+| totalDays | Integer | Number of days in period |
+| includedTimeSlots | Array | Time slots included in stats |
+| totalMedications | Integer | Number of unique medications |
+| totalScheduled | Integer | Total doses scheduled |
+| totalTaken | Integer | Doses marked as taken |
+| totalNotTaken | Integer | Doses not taken (includes future + missed) |
+| totalMissed | Integer | Doses missed (time passed but not taken) |
+| overallAdherencePercentage | Decimal | Adherence % (0-100) |
+| medicationBreakdown | Array | Per-medication stats (null if not requested) |
 
 ### Medication Breakdown Object
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| patientMedicationUuid | String | Patient medication UUID |
-|| medicationName | String | Medication name |
-|| medicationBrand | String | Brand name |
-|| totalScheduled | Integer | Scheduled doses for this med |
-|| totalTaken | Integer | Taken doses |
-|| totalNotTaken | Integer | Not taken doses |
-|| totalMissed | Integer | Missed doses for this med |
-|| adherencePercentage | Decimal | Adherence % for this med |
+| Field | Type | Description |
+|-------|------|-------------|
+| patientMedicationUuid | String | Patient medication UUID |
+| medicationName | String | Medication name |
+| medicationBrand | String | Brand name |
+| totalScheduled | Integer | Scheduled doses for this med |
+| totalTaken | Integer | Taken doses |
+| totalNotTaken | Integer | Not taken doses |
+| totalMissed | Integer | Missed doses for this med |
+| adherencePercentage | Decimal | Adherence % for this med |
 
 ### Statistics Calculation
 
@@ -2313,42 +2313,42 @@ This endpoint retrieves the complete details of an existing medication schedule,
 
 ### Path Parameters
 
-|| Parameter | Type | Required | Description | Example |
-||-----------|------|----------|-------------|---------|
-|| scheduleUuid | String | Yes | UUID of the schedule to retrieve | "550e8400-e29b-41d4-a716-446655440000" |
+| Parameter | Type | Required | Description | Example |
+|-----------|------|----------|-------------|---------|
+| scheduleUuid | String | Yes | UUID of the schedule to retrieve | "550e8400-e29b-41d4-a716-446655440000" |
 
 ### Response
 
 Returns schedule details wrapped in a success response.
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| success | Boolean | Always true for successful requests |
-|| message | String | Success message |
-|| data | Object | Schedule details object |
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Success message |
+| data | Object | Schedule details object |
 
 ### Response Data Object
 
-|| Field | Type | Editable | Description |
-||-------|------|----------|-------------|
-|| scheduleUuid | String | No | Schedule UUID (reference) |
-|| medicationName | String | No | Medication name (display only) |
-|| medicationBrand | String | No | Medication brand (display only) |
-|| medicationForm | String | No | Medication form (display only) |
-|| medicationStrength | String | No | Medication strength (display only) |
-|| startDate | Date | Yes | Current schedule start date |
-|| endDate | Date | Yes | Current schedule end date |
-|| morning | Boolean | Yes | Morning dose enabled |
-|| afternoon | Boolean | Yes | Afternoon dose enabled |
-|| evening | Boolean | Yes | Evening dose enabled |
-|| morningTime | Time | Yes | Time for morning dose |
-|| afternoonTime | Time | Yes | Time for afternoon dose |
-|| eveningTime | Time | Yes | Time for evening dose |
-|| isAfterMeal | Boolean | Yes | Take after meal |
-|| doseDescription | String | Yes | Dosage amount |
-|| dosageFrequency | String | Yes | How often to take |
-|| daysOfWeek | Array | Yes | Days to take medication |
-|| active | Boolean | No | Schedule is active |
+| Field | Type | Editable | Description |
+|-------|------|----------|-------------|
+| scheduleUuid | String | No | Schedule UUID (reference) |
+| medicationName | String | No | Medication name (display only) |
+| medicationBrand | String | No | Medication brand (display only) |
+| medicationForm | String | No | Medication form (display only) |
+| medicationStrength | String | No | Medication strength (display only) |
+| startDate | Date | Yes | Current schedule start date |
+| endDate | Date | Yes | Current schedule end date |
+| morning | Boolean | Yes | Morning dose enabled |
+| afternoon | Boolean | Yes | Afternoon dose enabled |
+| evening | Boolean | Yes | Evening dose enabled |
+| morningTime | Time | Yes | Time for morning dose |
+| afternoonTime | Time | Yes | Time for afternoon dose |
+| eveningTime | Time | Yes | Time for evening dose |
+| isAfterMeal | Boolean | Yes | Take after meal |
+| doseDescription | String | Yes | Dosage amount |
+| dosageFrequency | String | Yes | How often to take |
+| daysOfWeek | Array | Yes | Days to take medication |
+| active | Boolean | No | Schedule is active |
 
 ### Example Request
 
@@ -2472,54 +2472,54 @@ This endpoint allows users to edit their existing medication schedules. Users ca
 
 ### Request Body
 
-|| Field | Type | Required | Description | Example |
-||-------|------|----------|-------------|---------|
-|| scheduleUuid | String | Yes | UUID of schedule to update | "550e8400-..." |
-|| startDate | Date | Yes | Updated start date | "2025-10-15" |
-|| endDate | Date | Yes | Updated end date | "2025-12-31" |
-|| morning | Boolean | No | Enable morning dose | true |
-|| afternoon | Boolean | No | Enable afternoon dose | false |
-|| evening | Boolean | No | Enable evening dose | true |
-|| morningTime | Time | No | Morning dose time | "08:00:00" |
-|| afternoonTime | Time | No | Afternoon dose time | "14:00:00" |
-|| eveningTime | Time | No | Evening dose time | "20:00:00" |
-|| isAfterMeal | Boolean | No | Take after meal | true |
-|| doseDescription | String | No | Dosage amount | "500 mg" |
-|| dosageFrequency | String | No | How often to take | "Twice Daily" |
-|| daysOfWeek | Array | No | Days to take | ["Mon", "Wed", "Fri"] |
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| scheduleUuid | String | Yes | UUID of schedule to update | "550e8400-..." |
+| startDate | Date | Yes | Updated start date | "2025-10-15" |
+| endDate | Date | Yes | Updated end date | "2025-12-31" |
+| morning | Boolean | No | Enable morning dose | true |
+| afternoon | Boolean | No | Enable afternoon dose | false |
+| evening | Boolean | No | Enable evening dose | true |
+| morningTime | Time | No | Morning dose time | "08:00:00" |
+| afternoonTime | Time | No | Afternoon dose time | "14:00:00" |
+| eveningTime | Time | No | Evening dose time | "20:00:00" |
+| isAfterMeal | Boolean | No | Take after meal | true |
+| doseDescription | String | No | Dosage amount | "500 mg" |
+| dosageFrequency | String | No | How often to take | "Twice Daily" |
+| daysOfWeek | Array | No | Days to take | ["Mon", "Wed", "Fri"] |
 
 ### Response
 
 Returns updated schedule details wrapped in a success response.
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| success | Boolean | Always true for successful requests |
-|| message | String | Success message |
-|| data | Object | Updated schedule response object |
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Success message |
+| data | Object | Updated schedule response object |
 
 ### Response Data Object
 
-|| Field | Type | Description |
-||-------|------|-------------|
-|| scheduleUuid | String | Schedule UUID |
-|| medicationName | String | Medication name (unchanged) |
-|| medicationBrand | String | Brand name (unchanged) |
-|| startDate | Date | Updated start date |
-|| endDate | Date | Updated end date |
-|| doseDescription | String | Updated dose description |
-|| dosageFrequency | String | Updated dosage frequency |
-|| daysOfWeek | String | Updated days (comma-separated) |
-|| isAfterMeal | Boolean | Updated meal timing |
-|| isMorning | Boolean | Updated morning flag |
-|| isAfterNoon | Boolean | Updated afternoon flag |
-|| isEvening | Boolean | Updated evening flag |
-|| morningTime | Time | Updated morning time |
-|| afternoonTime | Time | Updated afternoon time |
-|| eveningTime | Time | Updated evening time |
-|| lastModifiedBy | String | Who updated the schedule |
-|| lastModifiedDate | Timestamp | When it was updated (UTC) |
-|| message | String | Success message |
+| Field | Type | Description |
+|-------|------|-------------|
+| scheduleUuid | String | Schedule UUID |
+| medicationName | String | Medication name (unchanged) |
+| medicationBrand | String | Brand name (unchanged) |
+| startDate | Date | Updated start date |
+| endDate | Date | Updated end date |
+| doseDescription | String | Updated dose description |
+| dosageFrequency | String | Updated dosage frequency |
+| daysOfWeek | String | Updated days (comma-separated) |
+| isAfterMeal | Boolean | Updated meal timing |
+| isMorning | Boolean | Updated morning flag |
+| isAfterNoon | Boolean | Updated afternoon flag |
+| isEvening | Boolean | Updated evening flag |
+| morningTime | Time | Updated morning time |
+| afternoonTime | Time | Updated afternoon time |
+| eveningTime | Time | Updated evening time |
+| lastModifiedBy | String | Who updated the schedule |
+| lastModifiedDate | Timestamp | When it was updated (UTC) |
+| message | String | Success message |
 
 ### Example Request 1: Extend Medication Period
 
@@ -2996,7 +2996,7 @@ DELETE /api/medications/schedule/ghi-789-jkl-012
 
 ## 12. Medication Intake Count Summary
 
-Get combined adherence statistics and upcoming medication doses in a single optimized call. This endpoint combines data from `/intake-stats` and `/upcoming-schedules` to provide a comprehensive dashboard view.
+Get combined adherence statistics and upcoming medication doses in a single optimized call. This endpoint combines data from `/intake-stats`, `/upcoming-schedules`, and `/missed-schedules` to provide a comprehensive dashboard view.
 
 ### Endpoint Details
 
@@ -3012,13 +3012,14 @@ This endpoint provides a **combined view** of medication adherence and upcoming 
 **What it combines:**
 - Adherence statistics (from `/intake-stats`)
 - Upcoming medication schedules (from `/upcoming-schedules`)
-- Status messages for upcoming doses
+- Missed medication schedules (from `/missed-schedules`)
+- Status messages for upcoming and missed doses
 
 **Benefits:**
-- Single API call instead of two
-- Reduced payload size (59% less data)
+- Single API call instead of three
+- Reduced payload size (60% less data)
 - All dashboard data in one response
-- Convenient status messages array
+- Convenient status messages arrays
 
 ### Request Body
 
@@ -3041,20 +3042,49 @@ This endpoint provides a **combined view** of medication adherence and upcoming 
 
 ### Response Data Object
 
+**Adherence Statistics Section:**
+
 | Field | Type | Description |
 |-------|------|-------------|
-| totalMedications | Integer | Number of unique medications |
-| totalScheduled | Integer | Total doses scheduled |
-| totalTaken | Integer | Doses marked as taken |
-| totalNotTaken | Integer | Doses not taken |
-| totalMissed | Integer | Doses missed |
-| overallAdherencePercentage | Decimal | Overall adherence % (0-100) |
-| totalUpcomingDoses | Integer | Number of upcoming doses |
-| upcomingMedications | Array | List of upcoming medications (simplified) |
-| statusMessages | Array | Status messages for upcoming doses |
-| fromDate | Date | Start date (YYYY-MM-DD) |
-| toDate | Date | End date (YYYY-MM-DD) |
-| timezone | String | User timezone |
+| totalMedications | Integer | Number of unique medications in the period |
+| totalScheduled | Integer | Total doses scheduled in the period (past + present + future) |
+| totalTaken | Integer | Total doses marked as taken (only past/completed doses) |
+| totalNotTaken | Integer | Total doses not taken yet (includes: missed past doses + upcoming future doses) |
+| totalMissed | Integer | Past doses that were scheduled but not taken (subset of totalNotTaken) |
+| overallAdherencePercentage | Decimal | Adherence percentage: (totalTaken / eligible doses) × 100 |
+
+**Upcoming Medications Section:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| totalUpcomingDoses | Integer | Number of upcoming/future doses (time has not passed yet) |
+| upcomingMedications | Array | List of upcoming medication doses with essential details |
+| statusMessages | Array | Formatted strings for upcoming doses: "Next Dose: 8:00 am - Aspirin" |
+
+**Missed Medications Section:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| totalMissedDoses | Integer | Number of past doses that were not taken (same as totalMissed) |
+| missedMedications | Array | List of missed medication doses with essential details |
+| missedStatusMessages | Array | Formatted strings for missed doses: "Missed Dose: 8:00 pm - Aspirin" |
+| mostMissedMedication | String | Name of the medication with highest missed count (null if no missed doses) |
+| mostMissedCount | Integer | Count of how many times the most missed medication was missed |
+
+**Metadata:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| fromDate | Date | Start date of the period (YYYY-MM-DD) |
+| toDate | Date | End date of the period (YYYY-MM-DD) |
+| timezone | String | Timezone used for calculations (e.g., "Asia/Kolkata") |
+
+**Understanding the Numbers:**
+- `totalScheduled` = All doses in the date range (past + present + future)
+- `totalTaken` + `totalNotTaken` = `totalScheduled`
+- `totalMissed` = Past doses with time passed but not taken
+- `totalUpcomingDoses` = Future doses with time not yet passed
+- `totalMissed` + `totalUpcomingDoses` ≤ `totalNotTaken` (not taken includes both missed and upcoming)
 
 ### Upcoming Medications Object
 
@@ -3083,18 +3113,20 @@ This endpoint provides a **combined view** of medication adherence and upcoming 
 
 ### Example Response
 
+**Scenario:** Period is Oct 10-15, 2025 (6 days). User has 3 medications, each taken twice daily (morning & evening). Current time is Oct 12, 3:00 PM. Out of 15 past doses: 13 taken, 2 missed. Future doses: 21 upcoming.
+
 ```json
 {
   "success": true,
-  "message": "Intake Summary: 85.50% adherence, 8 upcoming doses",
+  "message": "Intake Summary: 86.67% adherence, 21 upcoming doses, 2 missed doses",
   "data": {
     "totalMedications": 3,
-    "totalScheduled": 20,
-    "totalTaken": 17,
-    "totalNotTaken": 3,
-    "totalMissed": 1,
-    "overallAdherencePercentage": 85.50,
-    "totalUpcomingDoses": 8,
+    "totalScheduled": 36,
+    "totalTaken": 13,
+    "totalNotTaken": 23,
+    "totalMissed": 2,
+    "overallAdherencePercentage": 86.67,
+    "totalUpcomingDoses": 21,
     "upcomingMedications": [
       {
         "date": "2025-10-12",
@@ -3116,16 +3148,66 @@ This endpoint provides a **combined view** of medication adherence and upcoming 
       }
     ],
     "statusMessages": [
-      "Next Dose: 8:00 am - Aspirin",
+      "Next Dose: 8:00 pm - Aspirin",
       "Next Dose: 8:00 pm - Metformin",
-      "Next Dose: 8:00 am - Aspirin"
+      "Next Dose: 8:00 pm - Vitamin D"
     ],
+    "totalMissedDoses": 2,
+    "missedMedications": [
+      {
+        "date": "2025-10-10",
+        "dayOfWeek": "FRIDAY",
+        "medicationName": "Vitamin D",
+        "medicationBrand": "Nature Made",
+        "medicationStrength": "2000 IU",
+        "scheduledTime": "20:00:00",
+        "statusMessage": "Missed Dose: 8:00 pm - Vitamin D"
+      },
+      {
+        "date": "2025-10-12",
+        "dayOfWeek": "SUNDAY",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "medicationStrength": "500mg",
+        "scheduledTime": "08:00:00",
+        "statusMessage": "Missed Dose: 8:00 am - Aspirin"
+      }
+    ],
+    "missedStatusMessages": [
+      "Missed Dose: 8:00 pm - Vitamin D",
+      "Missed Dose: 8:00 am - Aspirin"
+    ],
+    "mostMissedMedication": "Aspirin",
+    "mostMissedCount": 1,
     "fromDate": "2025-10-10",
     "toDate": "2025-10-15",
     "timezone": "Asia/Kolkata"
   }
 }
 ```
+
+**Understanding the Numbers in This Example:**
+
+| Metric | Value | Explanation |
+|--------|-------|-------------|
+| Period | Oct 10-15 | 6 days total |
+| Medications | 3 | Aspirin, Metformin, Vitamin D |
+| Frequency | 2×/day | Morning (8am) & Evening (8pm) |
+| **Total Scheduled** | **36** | 6 days × 3 meds × 2 doses/day |
+| **Past Doses** | **15** | Oct 10-11 (12 doses) + Oct 12 morning (3 doses) |
+| **Future Doses** | **21** | Oct 12 evening (3) + Oct 13-15 (18) |
+| | | |
+| **Taken (Past)** | **13** | Out of 15 past doses, 13 were taken |
+| **Missed (Past)** | **2** | Out of 15 past doses, 2 were missed |
+| **Not Taken Total** | **23** | Missed (2) + Upcoming (21) |
+| | | |
+| **Adherence** | **86.67%** | 13 taken ÷ 15 eligible = 86.67% |
+
+**Key Formula Verifications:**
+- ✅ `totalTaken` + `totalNotTaken` = `totalScheduled` → 13 + 23 = 36
+- ✅ `totalMissed` + `totalUpcomingDoses` = `totalNotTaken` → 2 + 21 = 23
+- ✅ `totalMissed` = `totalMissedDoses` → 2 = 2
+- ✅ Past doses = `totalTaken` + `totalMissed` → 13 + 2 = 15
 
 ### Use Cases
 

@@ -584,7 +584,7 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ## 1️⃣2️⃣ Medication Intake Count Summary
 
-**What it does:** Get combined adherence statistics and upcoming doses in one call. Optimized for dashboards.
+**What it does:** Get combined adherence statistics, upcoming doses, and missed doses in one call. Optimized for dashboards.
 
 **URL:** `POST /api/medications/intake-count-summary`  
 **Auth:** ✅ Required  
@@ -605,20 +605,29 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 ```json
 {
   "success": true,
-  "message": "Intake Summary: 85.50% adherence, 8 upcoming doses",
+  "message": "Intake Summary: 86.67% adherence, 21 upcoming doses, 2 missed doses",
   "data": {
     "totalMedications": 3,
-    "totalScheduled": 20,
-    "totalTaken": 17,
-    "totalNotTaken": 3,
-    "totalMissed": 1,
-    "overallAdherencePercentage": 85.50,
-    "totalUpcomingDoses": 8,
+    "totalScheduled": 36,
+    "totalTaken": 13,
+    "totalNotTaken": 23,
+    "totalMissed": 2,
+    "overallAdherencePercentage": 86.67,
+    "totalUpcomingDoses": 21,
     "upcomingMedications": [...],
     "statusMessages": [
-      "Next Dose: 8:00 am - Aspirin",
-      "Next Dose: 8:00 pm - Metformin"
+      "Next Dose: 8:00 pm - Aspirin",
+      "Next Dose: 8:00 pm - Metformin",
+      "Next Dose: 8:00 pm - Vitamin D"
     ],
+    "totalMissedDoses": 2,
+    "missedMedications": [...],
+    "missedStatusMessages": [
+      "Missed Dose: 8:00 pm - Vitamin D",
+      "Missed Dose: 8:00 am - Aspirin"
+    ],
+    "mostMissedMedication": "Aspirin",
+    "mostMissedCount": 1,
     "fromDate": "2025-10-10",
     "toDate": "2025-10-15",
     "timezone": "Asia/Kolkata"
@@ -626,15 +635,23 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 }
 ```
 
+**Numbers Explained:**
+- 📊 **36 total** doses scheduled (6 days × 3 medications × 2 doses/day)
+- ✅ **13 taken** out of 15 past doses (86.67% adherence)
+- ❌ **2 missed** past doses
+- ⏰ **21 upcoming** future doses
+- 📈 Math check: 13 taken + 23 not taken = 36 total ✓
+```
+
 **Use when:** 
 - ✅ Building medication dashboard
-- ✅ Need adherence stats + upcoming doses
+- ✅ Need adherence stats + upcoming + missed doses
 - ✅ Want status messages for display
-- ✅ Optimize API calls (1 instead of 2)
+- ✅ Optimize API calls (1 instead of 3)
 
 **Benefits:**
-- **59% less data** than separate calls
-- **Single API call** instead of two
+- **60% less data** than separate calls
+- **Single API call** instead of three
 - **Status messages** ready for display
 - **All dashboard data** in one response
 

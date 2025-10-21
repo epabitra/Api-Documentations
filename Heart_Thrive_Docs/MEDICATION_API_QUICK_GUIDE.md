@@ -1,8 +1,8 @@
 # Medication API - Quick Reference Guide
 
-## 🚀 Eleven Powerful APIs
+## 🚀 Thirteen Powerful APIs
 
-### 1. Search → 2. Add → 3. View List → 4. View Schedule → 5. Track Intake → 6. View Stats → 7. Upcoming → 8. Missed → 9. Get for Edit → 10. Update Schedule → 11. Delete Schedule
+### 1. Search → 2. Add → 3. View List → 4. View Schedule → 5. Track Intake → 6. View Stats → 7. Upcoming → 8. Missed → 9. Get for Edit → 10. Update Schedule → 11. Delete Schedule → 12. Intake Summary → 13. Schedule Overview
 
 ---
 
@@ -582,15 +582,131 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
+## 1️⃣2️⃣ Medication Intake Count Summary
+
+**What it does:** Get combined adherence statistics and upcoming doses in one call. Optimized for dashboards.
+
+**URL:** `POST /api/medications/intake-count-summary`  
+**Auth:** ✅ Required  
+
+**Input:**
+```json
+{
+  "fromDate": "10-10-2025",
+  "toDate": "15-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isMorning": true,
+  "isAfterNoon": true,
+  "isEvening": true
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "message": "Intake Summary: 85.50% adherence, 8 upcoming doses",
+  "data": {
+    "totalMedications": 3,
+    "totalScheduled": 20,
+    "totalTaken": 17,
+    "totalNotTaken": 3,
+    "totalMissed": 1,
+    "overallAdherencePercentage": 85.50,
+    "totalUpcomingDoses": 8,
+    "upcomingMedications": [...],
+    "statusMessages": [
+      "Next Dose: 8:00 am - Aspirin",
+      "Next Dose: 8:00 pm - Metformin"
+    ],
+    "fromDate": "2025-10-10",
+    "toDate": "2025-10-15",
+    "timezone": "Asia/Kolkata"
+  }
+}
+```
+
+**Use when:** 
+- ✅ Building medication dashboard
+- ✅ Need adherence stats + upcoming doses
+- ✅ Want status messages for display
+- ✅ Optimize API calls (1 instead of 2)
+
+**Benefits:**
+- **59% less data** than separate calls
+- **Single API call** instead of two
+- **Status messages** ready for display
+- **All dashboard data** in one response
+
+---
+
+## 1️⃣3️⃣ Medication Schedule Overview
+
+**What it does:** Get complete schedule overview with all, upcoming, and missed schedules in one call.
+
+**URL:** `POST /api/medications/schedule-overview`  
+**Auth:** ✅ Required  
+
+**Input:**
+```json
+{
+  "fromDate": "10-10-2025",
+  "toDate": "15-10-2025",
+  "timezone": "Asia/Kolkata",
+  "medicationName": "Aspirin",
+  "isMorning": true,
+  "isAfterNoon": true,
+  "isEvening": true
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "message": "Schedule Overview: 18 total, 12 upcoming, 3 missed (15 taken)",
+  "data": {
+    "totalSchedules": 18,
+    "allSchedules": [...],
+    "totalUpcoming": 12,
+    "upcomingSchedules": [...],
+    "upcomingStatusMessages": [...],
+    "totalMissed": 3,
+    "missedSchedules": [...],
+    "mostMissedMedication": "Aspirin",
+    "mostMissedCount": 2,
+    "totalTaken": 15,
+    "totalMedications": 3,
+    "fromDate": "2025-10-10",
+    "toDate": "2025-10-15",
+    "timezone": "Asia/Kolkata"
+  }
+}
+```
+
+**Use when:** 
+- ✅ Need complete schedule overview
+- ✅ Want all schedules categorized
+- ✅ Building comprehensive schedule view
+- ✅ Optimize API calls (1 instead of 3)
+
+**Benefits:**
+- **60% less data** than separate calls
+- **Single API call** instead of three
+- **Categorized schedules** (all, upcoming, missed)
+- **Essential fields only** (7 vs 17 fields)
+
+---
+
 ## 📋 Quick Comparison
 
-| Feature | Search | Add | My Meds | Schedule | Track | Stats | Upcoming | Missed | Get Edit | Update | Delete |
-|---------|--------|-----|---------|----------|-------|-------|----------|--------|----------|--------|--------|
-| **Purpose** | Find meds | Add schedule | View active | Daily doses | Mark taken | Adherence | Next doses | Missed list | Prep edit | Save changes | Remove |
-| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Method** | POST | POST | POST | POST | POST | POST | POST | POST | GET | PUT | DELETE |
-| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Next list | Missed list | Schedule data | Updated | Success |
-| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | What's next | Adherence | Form pre-fill | Edit schedule | Stop med |
+| Feature | Search | Add | My Meds | Schedule | Track | Stats | Upcoming | Missed | Get Edit | Update | Delete | Intake Summary | Schedule Overview |
+|---------|--------|-----|---------|----------|-------|-------|----------|--------|----------|--------|--------|----------------|------------------|
+| **Purpose** | Find meds | Add schedule | View active | Daily doses | Mark taken | Adherence | Next doses | Missed list | Prep edit | Save changes | Remove | Combined stats+upcoming | All schedules categorized |
+| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Method** | POST | POST | POST | POST | POST | POST | POST | POST | GET | PUT | DELETE | POST | POST |
+| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Next list | Missed list | Schedule data | Updated | Success | Combined response | Categorized schedules |
+| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | What's next | Adherence | Form pre-fill | Edit schedule | Stop med | Dashboard | Complete overview |
 
 ---
 
@@ -959,8 +1075,9 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-**Version:** 2.4  
+**Version:** 2.5  
 **Last Updated:** October 21, 2025  
+**New in 2.5:** Added `/intake-count-summary` and `/schedule-overview` endpoints; Combined endpoints for optimized dashboard views with 59-60% data reduction  
 **New in 2.4:** Removed My Medication Menu List feature (deprecated); `isAddToMyMedication` field reserved for future use  
 **New in 2.2:** Added DELETE `/schedule/{uuid}` endpoint  
 **New in 2.1:** Added schedule editing endpoints - GET `/schedule/{uuid}` and PUT `/edit-schedule`  

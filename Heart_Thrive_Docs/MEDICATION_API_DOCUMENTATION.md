@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes eleven endpoints for managing medications in the HeartThrive application. These APIs allow users to search for medications, add medications to their profile, view their medication schedules, track daily medication intake with detailed schedule listings, record intake tracking, analyze adherence statistics, view upcoming doses, review missed medications, retrieve schedule details for editing, update existing schedules, and delete medication schedules.
+This document describes thirteen endpoints for managing medications in the HeartThrive application. These APIs allow users to search for medications, add medications to their profile, view their medication schedules, track daily medication intake with detailed schedule listings, record intake tracking, analyze adherence statistics, view upcoming doses, review missed medications, retrieve schedule details for editing, update existing schedules, delete medication schedules, get combined intake summaries, and view complete schedule overviews.
 
 ---
 
@@ -19,6 +19,8 @@ This document describes eleven endpoints for managing medications in the HeartTh
 9. [Get Schedule for Editing](#9-get-schedule-for-editing) - *Retrieve schedule data for editing*
 10. [Update Medication Schedule](#10-update-medication-schedule) - *Modify existing schedule*
 11. [Delete Medication Schedule](#11-delete-medication-schedule) - *Remove/stop medication schedule*
+12. [Medication Intake Count Summary](#12-medication-intake-count-summary) - *Combined adherence stats and upcoming doses*
+13. [Medication Schedule Overview](#13-medication-schedule-overview) - *Complete schedule view with all categories*
 
 ---
 
@@ -2990,6 +2992,381 @@ DELETE /api/medications/schedule/ghi-789-jkl-012
 - **Efficient:** Single database transaction
 - **UUID-based:** No internal IDs exposed
 
+---
+
+## 12. Medication Intake Count Summary
+
+Get combined adherence statistics and upcoming medication doses in a single optimized call. This endpoint combines data from `/intake-stats` and `/upcoming-schedules` to provide a comprehensive dashboard view.
+
+### Endpoint Details
+
+- **URL:** `/api/medications/intake-count-summary`
+- **Method:** `POST`
+- **Authentication:** Required (Bearer token)
+- **Content-Type:** `application/json`
+
+### Purpose
+
+This endpoint provides a **combined view** of medication adherence and upcoming doses, optimized for dashboard/summary pages. It reduces API calls from 2 to 1 and provides only essential data.
+
+**What it combines:**
+- Adherence statistics (from `/intake-stats`)
+- Upcoming medication schedules (from `/upcoming-schedules`)
+- Status messages for upcoming doses
+
+**Benefits:**
+- Single API call instead of two
+- Reduced payload size (59% less data)
+- All dashboard data in one response
+- Convenient status messages array
+
+### Request Body
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| fromDate | String | Yes | Start date (dd-MM-yyyy) | "10-10-2025" |
+| toDate | String | Yes | End date (dd-MM-yyyy) | "15-10-2025" |
+| timezone | String | Yes | User timezone | "Asia/Kolkata" |
+| isMorning | Boolean | No | Filter morning doses | true |
+| isAfterNoon | Boolean | No | Filter afternoon doses | true |
+| isEvening | Boolean | No | Filter evening doses | true |
+
+### Response
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Summary with key metrics |
+| data | Object | Combined response object |
+
+### Response Data Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| totalMedications | Integer | Number of unique medications |
+| totalScheduled | Integer | Total doses scheduled |
+| totalTaken | Integer | Doses marked as taken |
+| totalNotTaken | Integer | Doses not taken |
+| totalMissed | Integer | Doses missed |
+| overallAdherencePercentage | Decimal | Overall adherence % (0-100) |
+| totalUpcomingDoses | Integer | Number of upcoming doses |
+| upcomingMedications | Array | List of upcoming medications (simplified) |
+| statusMessages | Array | Status messages for upcoming doses |
+| fromDate | Date | Start date (YYYY-MM-DD) |
+| toDate | Date | End date (YYYY-MM-DD) |
+| timezone | String | User timezone |
+
+### Upcoming Medications Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| date | Date | Scheduled date |
+| dayOfWeek | String | Day of week (e.g., "MONDAY") |
+| medicationName | String | Medication name |
+| medicationBrand | String | Brand name |
+| medicationStrength | String | Strength/dosage |
+| scheduledTime | Time | Scheduled time |
+| statusMessage | String | Formatted status (e.g., "Next Dose: 8:00 pm - Aspirin") |
+
+### Example Request
+
+```json
+{
+  "fromDate": "10-10-2025",
+  "toDate": "15-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isMorning": true,
+  "isAfterNoon": true,
+  "isEvening": true
+}
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Intake Summary: 85.50% adherence, 8 upcoming doses",
+  "data": {
+    "totalMedications": 3,
+    "totalScheduled": 20,
+    "totalTaken": 17,
+    "totalNotTaken": 3,
+    "totalMissed": 1,
+    "overallAdherencePercentage": 85.50,
+    "totalUpcomingDoses": 8,
+    "upcomingMedications": [
+      {
+        "date": "2025-10-12",
+        "dayOfWeek": "SUNDAY",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "medicationStrength": "500mg",
+        "scheduledTime": "08:00:00",
+        "statusMessage": "Next Dose: 8:00 am - Aspirin"
+      },
+      {
+        "date": "2025-10-12",
+        "dayOfWeek": "SUNDAY",
+        "medicationName": "Metformin",
+        "medicationBrand": "Glucophage",
+        "medicationStrength": "850mg",
+        "scheduledTime": "20:00:00",
+        "statusMessage": "Next Dose: 8:00 pm - Metformin"
+      }
+    ],
+    "statusMessages": [
+      "Next Dose: 8:00 am - Aspirin",
+      "Next Dose: 8:00 pm - Metformin",
+      "Next Dose: 8:00 am - Aspirin"
+    ],
+    "fromDate": "2025-10-10",
+    "toDate": "2025-10-15",
+    "timezone": "Asia/Kolkata"
+  }
+}
+```
+
+### Use Cases
+
+#### Use Case 1: Dashboard Summary
+
+**Scenario:** User wants to see their medication adherence and upcoming doses on a dashboard
+
+**Request:**
+```http
+POST /api/medications/intake-count-summary
+Content-Type: application/json
+
+{
+  "fromDate": "01-10-2025",
+  "toDate": "31-10-2025",
+  "timezone": "Asia/Kolkata"
+}
+```
+
+**Result:** ✅ Combined adherence stats + upcoming doses
+
+**Benefits:**
+- Single API call instead of two
+- All dashboard data in one response
+- Status messages ready for display
+
+---
+
+## 13. Medication Schedule Overview
+
+Get complete medication schedule overview combining all schedules, upcoming schedules, and missed schedules in one optimized call. This endpoint provides a comprehensive view of all medication schedules categorized by type.
+
+### Endpoint Details
+
+- **URL:** `/api/medications/schedule-overview`
+- **Method:** `POST`
+- **Authentication:** Required (Bearer token)
+- **Content-Type:** `application/json`
+
+### Purpose
+
+This endpoint combines three separate queries into one optimized call:
+1. All Schedules (from `/schedule-list`)
+2. Upcoming Schedules (from `/upcoming-schedules`)
+3. Missed Schedules (from `/missed-schedules`)
+
+**What it returns:**
+- All schedules categorized into: all, upcoming, missed
+- Only essential fields (7 fields vs 17 in original)
+- Summary statistics and counts
+- Status messages for upcoming doses
+
+**Benefits:**
+- Single API call instead of three
+- Significantly reduced payload size (60% less data)
+- All schedule data in one structured response
+- Optimized for schedule overview/dashboard pages
+
+**Categories Explained:**
+- allSchedules: Complete list (past + present + future)
+- upcomingSchedules: Future doses only (time not yet passed)
+- missedSchedules: Past doses that were not taken
+
+### Request Body
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| fromDate | String | Yes | Start date (dd-MM-yyyy) | "10-10-2025" |
+| toDate | String | Yes | End date (dd-MM-yyyy) | "15-10-2025" |
+| timezone | String | Yes | User timezone | "Asia/Kolkata" |
+| medicationName | String | No | Filter by medication name | "Aspirin" |
+| isMorning | Boolean | No | Filter morning doses | true |
+| isAfterNoon | Boolean | No | Filter afternoon doses | true |
+| isEvening | Boolean | No | Filter evening doses | true |
+
+### Response
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Summary with key metrics |
+| data | Object | Schedule overview response object |
+
+### Response Data Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| totalSchedules | Integer | Total number of all schedules |
+| allSchedules | Array | All medication schedules (past, present, future) |
+| totalUpcoming | Integer | Total number of upcoming schedules |
+| upcomingSchedules | Array | Upcoming medication schedules (future only) |
+| upcomingStatusMessages | Array | Status messages for upcoming medications |
+| totalMissed | Integer | Total number of missed schedules |
+| missedSchedules | Array | Missed medication schedules (past but not taken) |
+| mostMissedMedication | String | Most missed medication name |
+| mostMissedCount | Integer | Count of most missed medication |
+| totalTaken | Integer | Total taken doses |
+| totalMedications | Integer | Total unique medications |
+| fromDate | Date | Start date (YYYY-MM-DD) |
+| toDate | Date | End date (YYYY-MM-DD) |
+| timezone | String | User timezone |
+
+### Schedule Object (Minimal)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| date | Date | Scheduled date |
+| dayOfWeek | String | Day of week (e.g., "MONDAY") |
+| medicationName | String | Medication name |
+| medicationBrand | String | Brand name |
+| medicationStrength | String | Strength/dosage |
+| scheduledTime | Time | Scheduled time |
+| isTaken | Boolean | Whether dose was taken |
+
+### Example Request
+
+```json
+{
+  "fromDate": "10-10-2025",
+  "toDate": "15-10-2025",
+  "timezone": "Asia/Kolkata",
+  "medicationName": null,
+  "isMorning": true,
+  "isAfterNoon": true,
+  "isEvening": true
+}
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Schedule Overview: 18 total, 12 upcoming, 3 missed (15 taken)",
+  "data": {
+    "totalSchedules": 18,
+    "allSchedules": [
+      {
+        "date": "2025-10-10",
+        "dayOfWeek": "FRIDAY",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "medicationStrength": "500mg",
+        "scheduledTime": "08:00:00",
+        "isTaken": true
+      },
+      {
+        "date": "2025-10-10",
+        "dayOfWeek": "FRIDAY",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "medicationStrength": "500mg",
+        "scheduledTime": "20:00:00",
+        "isTaken": false
+      }
+    ],
+    "totalUpcoming": 12,
+    "upcomingSchedules": [
+      {
+        "date": "2025-10-12",
+        "dayOfWeek": "SUNDAY",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "medicationStrength": "500mg",
+        "scheduledTime": "08:00:00",
+        "isTaken": false
+      }
+    ],
+    "upcomingStatusMessages": [
+      "Next Dose: 8:00 am - Aspirin",
+      "Next Dose: 8:00 pm - Aspirin"
+    ],
+    "totalMissed": 3,
+    "missedSchedules": [
+      {
+        "date": "2025-10-10",
+        "dayOfWeek": "FRIDAY",
+        "medicationName": "Vitamin D",
+        "medicationBrand": "Nature Made",
+        "medicationStrength": "2000 IU",
+        "scheduledTime": "08:00:00",
+        "isTaken": false
+      }
+    ],
+    "mostMissedMedication": "Aspirin",
+    "mostMissedCount": 2,
+    "totalTaken": 15,
+    "totalMedications": 3,
+    "fromDate": "2025-10-10",
+    "toDate": "2025-10-15",
+    "timezone": "Asia/Kolkata"
+  }
+}
+```
+
+### Use Cases
+
+#### Use Case 1: Complete Schedule Dashboard
+
+**Scenario:** User wants to see all their medication schedules in one comprehensive view
+
+**Request:**
+```http
+POST /api/medications/schedule-overview
+Content-Type: application/json
+
+{
+  "fromDate": "01-10-2025",
+  "toDate": "31-10-2025",
+  "timezone": "Asia/Kolkata"
+}
+```
+
+**Result:** ✅ All schedules categorized (all, upcoming, missed)
+
+**Benefits:**
+- Single API call instead of three
+- All schedule data in one response
+- Categorized for easy display
+
+#### Use Case 2: Medication-Specific Overview
+
+**Scenario:** User wants to see overview for a specific medication only
+
+**Request:**
+```http
+POST /api/medications/schedule-overview
+Content-Type: application/json
+
+{
+  "fromDate": "10-10-2025",
+  "toDate": "15-10-2025",
+  "timezone": "Asia/Kolkata",
+  "medicationName": "Aspirin"
+}
+```
+
+**Result:** ✅ Aspirin schedules only (all, upcoming, missed)
+
+---
+
 ### Frequently Asked Questions
 
 **Q: What happens to my intake records when I delete a schedule?**
@@ -3012,11 +3389,12 @@ A: No. Past intake records are preserved, so historical adherence data remains i
 
 ---
 
-**API Version:** 2.4
+**API Version:** 2.5
 **Last Updated:** October 21, 2025  
 **Status:** Production Ready
 
 **Changelog:**
+- v2.5 (Oct 21, 2025): Added `/intake-count-summary` and `/schedule-overview` endpoints; Combined endpoints for optimized dashboard views with 59-60% data reduction
 - v2.4 (Oct 21, 2025): Removed My Medication Menu List feature (deprecated); `isAddToMyMedication` field reserved for future use
 - v2.2 (Oct 16, 2025): Added `/schedule/{scheduleUuid}` (DELETE) endpoint for medication schedule deletion; Implements soft delete to preserve medication history
 - v2.1 (Oct 15, 2025): Added `/schedule/{scheduleUuid}` (GET) and `/edit-schedule` (PUT) endpoints for schedule editing workflow; Enables users to retrieve and update medication schedules

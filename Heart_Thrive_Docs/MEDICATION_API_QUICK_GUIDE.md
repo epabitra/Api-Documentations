@@ -260,7 +260,7 @@
 }
 ```
 
-**Input (Detailed - With Breakdown):**
+**Input (Detailed - With Medication Breakdown):**
 ```json
 {
   "fromDate": "01-10-2025",
@@ -271,7 +271,28 @@
 }
 ```
 
-**Output:**
+**Input (Advanced - With Slot-Wise Breakdown):**
+```json
+{
+  "fromDate": "01-10-2025",
+  "toDate": "07-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isSlotWiseBreakDownRequired": true
+}
+```
+
+**Input (Complete Analysis - Both Breakdowns):**
+```json
+{
+  "fromDate": "01-10-2025",
+  "toDate": "07-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isMedicationBreakdownRequired": true,
+  "isSlotWiseBreakDownRequired": true
+}
+```
+
+**Output (Simple):**
 ```json
 {
   "success": true,
@@ -283,12 +304,38 @@
     "totalNotTaken": 6,
     "totalMissed": 4,
     "overallAdherencePercentage": 85.71,
-    "medicationBreakdown": [ ... ]
+    "medicationBreakdown": null,
+    "slotWiseBreakdown": null
   }
 }
 ```
 
-**Use when:** You want to see adherence reports, compliance percentages, or identify missed doses.
+**Output (With Breakdowns):**
+```json
+{
+  "success": true,
+  "message": "Statistics for 7 day(s): 42 scheduled, 36 taken, 4 missed, 85.71% adherence",
+  "data": {
+    "totalScheduled": 42,
+    "totalTaken": 36,
+    "medicationBreakdown": [
+      {"medicationName": "Aspirin", "adherencePercentage": 92.86, ...},
+      {"medicationName": "Metformin", "adherencePercentage": 85.71, ...}
+    ],
+    "slotWiseBreakdown": [
+      {"timeSlot": "AFTERNOON", "adherencePercentage": 71.43, ...},
+      {"timeSlot": "EVENING", "adherencePercentage": 90.48, ...},
+      {"timeSlot": "MORNING", "adherencePercentage": 85.71, ...}
+    ]
+  }
+}
+```
+
+**Use when:** 
+- ✅ See overall adherence reports
+- ✅ Identify which medications need attention (medication breakdown)
+- ✅ Identify which time slots have problems (slot breakdown)
+- ✅ Complete adherence analysis (both breakdowns)
 
 ---
 

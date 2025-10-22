@@ -1514,6 +1514,7 @@ Calculate medication adherence statistics for any time period. This endpoint:
 | isAfternoon | Boolean | No | Include only afternoon slots in stats | true |
 | isEvening | Boolean | No | Include only evening slots in stats | true |
 | isMedicationBreakdownRequired | Boolean | No | Include per-medication breakdown | true |
+| isSlotWiseBreakDownRequired | Boolean | No | Include per-slot breakdown | true |
 
 ### Filter Logic
 
@@ -1528,6 +1529,11 @@ Calculate medication adherence statistics for any time period. This endpoint:
 |---------------------|----------|
 | null or false | medicationBreakdown is **null** (not calculated) |
 | true | medicationBreakdown **populated** with per-med stats |
+
+| Slot-Wise Breakdown | Behavior |
+|---------------------|----------|
+| null or false | slotWiseBreakdown is **null** (not calculated) |
+| true | slotWiseBreakdown **populated** with per-slot stats |
 
 ### Response
 
@@ -1553,6 +1559,7 @@ Calculate medication adherence statistics for any time period. This endpoint:
 | totalMissed | Integer | Doses missed (time passed but not taken) |
 | overallAdherencePercentage | Decimal | Adherence % (0-100) |
 | medicationBreakdown | Array | Per-medication stats (null if not requested) |
+| slotWiseBreakdown | Array | Per-slot stats (null if not requested) |
 
 ### Medication Breakdown Object
 
@@ -1566,6 +1573,17 @@ Calculate medication adherence statistics for any time period. This endpoint:
 | totalNotTaken | Integer | Not taken doses |
 | totalMissed | Integer | Missed doses for this med |
 | adherencePercentage | Decimal | Adherence % for this med |
+
+### Time Slot Breakdown Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| timeSlot | String | Time slot name (MORNING, AFTERNOON, EVENING) |
+| totalScheduled | Integer | Scheduled doses for this slot |
+| totalTaken | Integer | Taken doses in this slot |
+| totalNotTaken | Integer | Not taken doses in this slot |
+| totalMissed | Integer | Missed doses for this slot |
+| adherencePercentage | Decimal | Adherence % for this slot (0-100) |
 
 ### Statistics Calculation
 
@@ -1736,6 +1754,182 @@ Content-Type: application/json
 ```
 
 **Insight:** Vitamin D3 has lowest adherence (71.43%) - needs attention!
+
+### Example Request 4: With Slot-Wise Breakdown
+
+```http
+POST /api/medications/intake-stats
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+Content-Type: application/json
+
+{
+  "fromDate": "01-10-2025",
+  "toDate": "07-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isSlotWiseBreakDownRequired": true
+}
+```
+
+**Use Case:** Identify which time slots have adherence issues
+
+### Example Response 4
+
+```json
+{
+  "success": true,
+  "message": "Statistics for 7 day(s): 42 scheduled, 36 taken, 4 missed, 85.71% adherence",
+  "data": {
+    "fromDate": "2025-10-01",
+    "toDate": "2025-10-07",
+    "timezone": "Asia/Kolkata",
+    "totalDays": 7,
+    "includedTimeSlots": ["MORNING", "AFTERNOON", "EVENING"],
+    "totalMedications": 3,
+    "totalScheduled": 42,
+    "totalTaken": 36,
+    "totalNotTaken": 6,
+    "totalMissed": 4,
+    "overallAdherencePercentage": 85.71,
+    "medicationBreakdown": null,
+    "slotWiseBreakdown": [
+      {
+        "timeSlot": "AFTERNOON",
+        "totalScheduled": 7,
+        "totalTaken": 5,
+        "totalNotTaken": 2,
+        "totalMissed": 2,
+        "adherencePercentage": 71.43
+      },
+      {
+        "timeSlot": "EVENING",
+        "totalScheduled": 21,
+        "totalTaken": 19,
+        "totalNotTaken": 2,
+        "totalMissed": 1,
+        "adherencePercentage": 90.48
+      },
+      {
+        "timeSlot": "MORNING",
+        "totalScheduled": 14,
+        "totalTaken": 12,
+        "totalNotTaken": 2,
+        "totalMissed": 1,
+        "adherencePercentage": 85.71
+      }
+    ]
+  }
+}
+```
+
+**Insight:** Afternoon slot has lowest adherence (71.43%) - user forgets afternoon medications!
+
+**Understanding the Breakdown:**
+- Total Scheduled (42) = AFTERNOON (7) + EVENING (21) + MORNING (14) ✓
+- Total Taken (36) = AFTERNOON (5) + EVENING (19) + MORNING (12) ✓
+- Total Missed (4) = AFTERNOON (2) + EVENING (1) + MORNING (1) ✓
+
+### Example Request 5: With Both Medication and Slot Breakdown
+
+```http
+POST /api/medications/intake-stats
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+Content-Type: application/json
+
+{
+  "fromDate": "01-10-2025",
+  "toDate": "07-10-2025",
+  "timezone": "Asia/Kolkata",
+  "isMedicationBreakdownRequired": true,
+  "isSlotWiseBreakDownRequired": true
+}
+```
+
+**Use Case:** Complete adherence analysis - which medications and which time slots need attention
+
+### Example Response 5
+
+```json
+{
+  "success": true,
+  "message": "Statistics for 7 day(s): 42 scheduled, 36 taken, 4 missed, 85.71% adherence",
+  "data": {
+    "fromDate": "2025-10-01",
+    "toDate": "2025-10-07",
+    "timezone": "Asia/Kolkata",
+    "totalDays": 7,
+    "includedTimeSlots": ["MORNING", "AFTERNOON", "EVENING"],
+    "totalMedications": 3,
+    "totalScheduled": 42,
+    "totalTaken": 36,
+    "totalNotTaken": 6,
+    "totalMissed": 4,
+    "overallAdherencePercentage": 85.71,
+    "medicationBreakdown": [
+      {
+        "patientMedicationUuid": "abc-123-uuid",
+        "medicationName": "Aspirin",
+        "medicationBrand": "Bayer",
+        "totalScheduled": 14,
+        "totalTaken": 13,
+        "totalNotTaken": 1,
+        "totalMissed": 1,
+        "adherencePercentage": 92.86
+      },
+      {
+        "patientMedicationUuid": "def-456-uuid",
+        "medicationName": "Metformin",
+        "medicationBrand": "Glucophage",
+        "totalScheduled": 21,
+        "totalTaken": 18,
+        "totalNotTaken": 3,
+        "totalMissed": 2,
+        "adherencePercentage": 85.71
+      },
+      {
+        "patientMedicationUuid": "ghi-789-uuid",
+        "medicationName": "Vitamin D3",
+        "medicationBrand": "Nature Made",
+        "totalScheduled": 7,
+        "totalTaken": 5,
+        "totalNotTaken": 2,
+        "totalMissed": 1,
+        "adherencePercentage": 71.43
+      }
+    ],
+    "slotWiseBreakdown": [
+      {
+        "timeSlot": "AFTERNOON",
+        "totalScheduled": 7,
+        "totalTaken": 5,
+        "totalNotTaken": 2,
+        "totalMissed": 2,
+        "adherencePercentage": 71.43
+      },
+      {
+        "timeSlot": "EVENING",
+        "totalScheduled": 21,
+        "totalTaken": 19,
+        "totalNotTaken": 2,
+        "totalMissed": 1,
+        "adherencePercentage": 90.48
+      },
+      {
+        "timeSlot": "MORNING",
+        "totalScheduled": 14,
+        "totalTaken": 12,
+        "totalNotTaken": 2,
+        "totalMissed": 1,
+        "adherencePercentage": 85.71
+      }
+    ]
+  }
+}
+```
+
+**Complete Analysis:**
+- 📊 **By Medication:** Vitamin D3 needs attention (71.43% adherence)
+- ⏰ **By Time Slot:** Afternoon needs attention (71.43% adherence)
+- 💡 **Actionable Insight:** Set afternoon reminders, especially for Vitamin D3!
 
 ### Error Responses
 

@@ -18,9 +18,10 @@ This document describes thirteen endpoints for managing medications in the Heart
 8. [Missed Medication Schedules](#8-missed-medication-schedules) - *Review missed doses*
 9. [Get Schedule for Editing](#9-get-schedule-for-editing) - *Retrieve schedule data for editing*
 10. [Update Medication Schedule](#10-update-medication-schedule) - *Modify existing schedule*
-11. [Delete Medication Schedule](#11-delete-medication-schedule) - *Remove/stop medication schedule*
-12. [Medication Intake Count Summary](#12-medication-intake-count-summary) - *Combined adherence stats and upcoming doses*
-13. [Medication Schedule Overview](#13-medication-schedule-overview) - *Complete schedule view with all categories*
+11. [Remove My Medication](#11-remove-my-medication) - *Remove medication from favorites*
+12. [Delete Medication Schedule](#12-delete-medication-schedule) - *Remove/stop medication schedule*
+13. [Medication Intake Count Summary](#13-medication-intake-count-summary) - *Combined adherence stats and upcoming doses*
+14. [Medication Schedule Overview](#14-medication-schedule-overview) - *Complete schedule view with all categories*
 
 ---
 
@@ -309,12 +310,18 @@ Get all your medications with their current schedules. Supports filtering by med
 
 ### Purpose
 
-Retrieve all medications you've added to your profile along with their latest schedules. You can filter the results by:
+Retrieve all medications you've added to your profile along with their **latest favorite schedules only**. The endpoint now returns only the most recent schedule where `is_favorite = true` for each medication. You can filter the results by:
 - Medication name
 - Time of day (morning, afternoon, evening)
 - Date range
 
-This is useful for viewing your current medication schedule or finding specific medications.
+**Key Behavior:**
+- Returns only schedules where `is_favorite = true`
+- If multiple schedules exist for the same medication, returns the latest one
+- Includes `medicationUuid` in the response for easy reference
+- Perfect for "My Medications" dashboard view
+
+This is useful for viewing your current favorite medication schedule or finding specific medications.
 
 ### Request Body
 
@@ -348,6 +355,7 @@ Each medication in the `data` array contains:
 | medicationName | String | Name of the medication |
 | medicationBrand | String | Brand name |
 | medicationForm | String | Form (Tablet, Capsule, etc.) |
+| medicationUuid | String | **NEW:** Unique identifier for the medication |
 | scheduleUuid | String | Unique identifier for this schedule |
 | doseDescription | String | Dosage amount (e.g., "500mg") |
 | dosageFrequency | String | How often (e.g., "Weekly Twice") |
@@ -362,6 +370,7 @@ Each medication in the `data` array contains:
 | endDate | Date | Schedule end date |
 | isAfterMeal | Boolean | Take after meal? |
 | active | Boolean | Schedule is active? |
+| isFavorite | Boolean | **NEW:** Whether this schedule is marked as favorite |
 
 ### Example Request 1: No Filters (All Medications)
 
@@ -2645,24 +2654,37 @@ Update an existing medication schedule. Allows users to modify schedule details 
 
 ### Purpose
 
-This endpoint allows users to edit their existing medication schedules. Users can update:
+This endpoint allows users to edit their existing medication schedules with enhanced validation and smart schedule management. Users can update:
 - **Time period** (extend or reduce medication duration)
 - **Days of week** (change from daily to specific days or vice versa)
 - **Time slots** (add/remove morning, afternoon, evening doses)
 - **Meal timing** (change before/after meal preference)
 - **Dosage details** (update frequency or description)
+- **Favorite status** (mark as favorite medication)
+
+**Enhanced Validation Rules:**
+- **Intake Records Check:** If intake records exist, startDate cannot be changed
+- **Date Restrictions:** startDate cannot be set to a date earlier than current startDate
+- **Smart Schedule Management:** Creates new schedule when changes are detected, soft-deletes old one
+- **No Changes Detection:** Returns "no information for update" when no changes are made
 
 **What CANNOT be updated:**
 - Medication name (this is in the medication table)
 - Medication brand (this is in the medication table)
 - To change the medication, user should create a new schedule
 
+**Operation Types:**
+- **UPDATE:** Direct update of existing schedule (rare case, when no intake records and no startDate change)
+- **CREATE_NEW:** New schedule created, old one soft deleted (most common when changes detected)
+- **NO_CHANGES:** No changes detected, returns informational message
+
 **Typical Flow:**
 1. User retrieves schedule details via GET `/schedule/{scheduleUuid}`
 2. Form is pre-filled with current values
 3. User modifies desired fields
 4. Frontend calls this endpoint with updated values
-5. Backend updates the schedule and returns confirmation
+5. Backend validates changes and either updates existing or creates new schedule
+6. Returns confirmation with operation type
 
 ### Request Body
 
@@ -2681,6 +2703,14 @@ This endpoint allows users to edit their existing medication schedules. Users ca
 | doseDescription | String | No | Dosage amount | "500 mg" |
 | dosageFrequency | String | No | How often to take | "Twice Daily" |
 | daysOfWeek | Array | No | Days to take | ["Mon", "Wed", "Fri"] |
+| isUpdateMyMedication | Boolean | No | **NEW:** Mark new schedule as favorite | true |
+
+**New Field Details:**
+- **`isUpdateMyMedication`:** Controls favorite status for new schedules
+  - `true` = Mark new schedule as favorite (is_favorite = true)
+  - `false` = Mark new schedule as non-favorite (is_favorite = false)
+  - Only used when creating new schedule due to changes
+  - If no changes detected, this field is ignored
 
 ### Response
 
@@ -2714,8 +2744,14 @@ Returns updated schedule details wrapped in a success response.
 | lastModifiedBy | String | Who updated the schedule |
 | lastModifiedDate | Timestamp | When it was updated (UTC) |
 | message | String | Success message |
+| **NEW Response Fields:** | | |
+| operationType | String | **NEW:** Type of operation performed ("UPDATE", "CREATE_NEW", "NO_CHANGES") |
+| newScheduleUuid | String | **NEW:** UUID of new schedule (only when operationType = "CREATE_NEW") |
+| newScheduleCreated | Boolean | **NEW:** Whether a new schedule was created |
+| oldScheduleDeleted | Boolean | **NEW:** Whether the old schedule was soft deleted |
+| isFavorite | Boolean | **NEW:** Favorite status of the schedule after operation |
 
-### Example Request 1: Extend Medication Period
+### Example Request 1: Extend Medication Period (Creates New Schedule)
 
 ```http
 PUT /api/medications/edit-schedule
@@ -2734,11 +2770,93 @@ Content-Type: application/json
   "isAfterMeal": true,
   "doseDescription": "500 mg",
   "dosageFrequency": "Twice Daily",
+  "daysOfWeek": ["Mon", "Wed", "Fri"],
+  "isUpdateMyMedication": true
+}
+```
+
+### Example Request 2: Mark as Favorite (Direct Update)
+
+```http
+PUT /api/medications/edit-schedule
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+Content-Type: application/json
+
+{
+  "scheduleUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2025-10-15",
+  "endDate": "2025-12-31",
+  "morning": true,
+  "afternoon": false,
+  "evening": true,
+  "morningTime": "08:00:00",
+  "eveningTime": "20:00:00",
+  "isAfterMeal": true,
+  "doseDescription": "500 mg",
+  "dosageFrequency": "Twice Daily",
+  "daysOfWeek": ["Mon", "Wed", "Fri"],
+  "isUpdateMyMedication": true
+}
+```
+
+### Example Request 3: No Changes (Returns No Changes Message)
+
+```http
+PUT /api/medications/edit-schedule
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+Content-Type: application/json
+
+{
+  "scheduleUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2025-10-15",
+  "endDate": "2025-12-31",
+  "morning": true,
+  "afternoon": false,
+  "evening": true,
+  "morningTime": "08:00:00",
+  "eveningTime": "20:00:00",
+  "isAfterMeal": true,
+  "doseDescription": "500 mg",
+  "dosageFrequency": "Twice Daily",
   "daysOfWeek": ["Mon", "Wed", "Fri"]
 }
 ```
 
-### Example Response 1
+### Example Response 1: New Schedule Created (CREATE_NEW)
+
+```json
+{
+  "success": true,
+  "message": "New medication schedule created successfully",
+  "data": {
+    "scheduleUuid": "550e8400-e29b-41d4-a716-446655440000",
+    "medicationName": "Aspirin",
+    "medicationBrand": "Bayer",
+    "startDate": "2025-10-15",
+    "endDate": "2026-03-31",
+    "doseDescription": "500 mg",
+    "dosageFrequency": "Twice Daily",
+    "daysOfWeek": "mon,wed,fri",
+    "isAfterMeal": true,
+    "isMorning": true,
+    "isAfterNoon": false,
+    "isEvening": true,
+    "morningTime": "08:00:00",
+    "afternoonTime": null,
+    "eveningTime": "20:00:00",
+    "lastModifiedBy": "user@example.com",
+    "lastModifiedDate": "2025-10-15T10:30:00Z",
+    "message": "Successfully created new medication schedule for Aspirin",
+    "operationType": "CREATE_NEW",
+    "newScheduleUuid": "660e8400-e29b-41d4-a716-446655440001",
+    "newScheduleCreated": true,
+    "oldScheduleDeleted": true,
+    "isFavorite": true
+  }
+}
+```
+
+### Example Response 2: Direct Update (UPDATE)
 
 ```json
 {
@@ -2762,7 +2880,12 @@ Content-Type: application/json
     "eveningTime": "20:00:00",
     "lastModifiedBy": "user@example.com",
     "lastModifiedDate": "2025-10-15T10:30:00Z",
-    "message": "Successfully updated medication schedule for Aspirin"
+    "message": "Successfully updated medication schedule for Aspirin",
+    "operationType": "UPDATE",
+    "newScheduleUuid": null,
+    "newScheduleCreated": false,
+    "oldScheduleDeleted": false,
+    "isFavorite": true
   }
 }
 ```
@@ -2968,7 +3091,114 @@ All fields in the `patient_medication_schedule` table:
 
 ---
 
-## 11. Delete Medication Schedule
+## 11. Remove My Medication
+
+Remove a medication from your favorites by setting its favorite status to false for all related schedules.
+
+### Endpoint Details
+
+- **URL:** `/api/medications/remove-my-medication`
+- **Method:** `POST`
+- **Authentication:** Required (Bearer token)
+- **Content-Type:** `application/json`
+
+### Purpose
+
+This endpoint allows users to remove medications from their "My Medications" list by setting the `is_favorite` status to `false` for all schedules associated with a specific medication. This is different from deleting schedules - it only changes the favorite status.
+
+**Key Behavior:**
+- Takes a `scheduleUuid` as input
+- Finds the associated `patient_medication_id`
+- Sets `is_favorite = false` for ALL schedules related to that medication
+- Does not delete or soft-delete any schedules
+- Preserves all schedule data and intake history
+
+### Request Body
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| scheduleUuid | String | Yes | UUID of any schedule for the medication to remove | "550e8400-..." |
+
+### Response
+
+Returns confirmation of the removal operation.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| success | Boolean | Always true for successful requests |
+| message | String | Success message with details |
+| data | Object | Removal confirmation object |
+
+### Response Data Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| scheduleUuid | String | The schedule UUID that was used for removal |
+| medicationName | String | Name of the medication that was removed |
+| medicationBrand | String | Brand of the medication |
+| patientMedicationId | Long | Internal ID of the patient medication |
+| schedulesUpdated | Integer | Number of schedules that were updated |
+| removedBy | String | User who performed the removal |
+| removedAt | Timestamp | When the removal was performed (UTC) |
+| message | String | Detailed success message |
+
+### Example Request
+
+```http
+POST /api/medications/remove-my-medication
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+Content-Type: application/json
+
+{
+  "scheduleUuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Medication 'Aspirin' removed from favorites successfully",
+  "data": {
+    "scheduleUuid": "550e8400-e29b-41d4-a716-446655440000",
+    "medicationName": "Aspirin",
+    "medicationBrand": "Bayer",
+    "patientMedicationId": 123,
+    "schedulesUpdated": 3,
+    "removedBy": "user@example.com",
+    "removedAt": "2025-10-15T10:30:00Z",
+    "message": "Successfully removed 'Aspirin' from favorites - 3 schedule(s) updated"
+  }
+}
+```
+
+### Use Cases
+
+- **Remove from favorites:** User no longer wants to see this medication in "My Medications"
+- **Clean up list:** Remove medications that are no longer relevant
+- **Temporary removal:** Hide medication without deleting schedules
+- **Bulk removal:** Remove all schedules for a specific medication at once
+
+### Important Notes
+
+- **No data loss:** Schedules are not deleted, only marked as non-favorite
+- **Bulk operation:** All schedules for the medication are updated
+- **Reversible:** Can be added back to favorites using edit-schedule with `isUpdateMyMedication=true`
+- **Security:** Only schedules belonging to the current user can be removed
+- **History preserved:** All intake records and schedule history remain intact
+
+### Error Responses
+
+| Error | Description | Solution |
+|-------|-------------|----------|
+| 400 Bad Request | Invalid schedule UUID format | Check UUID format |
+| 404 Not Found | Schedule not found | Verify schedule exists and belongs to user |
+| 401 Unauthorized | Invalid or missing authentication | Check Bearer token |
+
+---
+
+## 12. Delete Medication Schedule
 
 Delete (soft delete) an existing medication schedule. Sets the schedule to inactive so it no longer appears in schedule lists or tracking views.
 
@@ -3188,7 +3418,7 @@ DELETE /api/medications/schedule/ghi-789-jkl-012
 
 ---
 
-## 12. Medication Intake Count Summary
+## 13. Medication Intake Count Summary
 
 Get combined adherence statistics and upcoming medication doses in a single optimized call. This endpoint combines data from `/intake-stats`, `/upcoming-schedules`, and `/missed-schedules` to provide a comprehensive dashboard view.
 
@@ -3430,7 +3660,7 @@ Content-Type: application/json
 
 ---
 
-## 13. Medication Schedule Overview
+## 14. Medication Schedule Overview
 
 Get complete medication schedule overview combining all schedules, upcoming schedules, and missed schedules in one optimized call. This endpoint provides a comprehensive view of all medication schedules categorized by type.
 

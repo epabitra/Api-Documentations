@@ -103,10 +103,16 @@
 
 ## 3️⃣ My Medications
 
-**What it does:** View all your medications with current schedules. Can filter by name, time slots, or date range.
+**What it does:** View all your medications with their **latest favorite schedules only**. Returns only schedules where `is_favorite = true` for each medication. Can filter by name, time slots, or date range.
 
 **URL:** `POST /api/medications/my-medications`  
-**Auth:** ✅ Required  
+**Auth:** ✅ Required
+
+**Key Behavior:**
+- Returns only schedules where `is_favorite = true`
+- If multiple schedules exist for the same medication, returns the latest one
+- Includes `medicationUuid` in the response for easy reference
+- Perfect for "My Medications" dashboard view  
 
 **Input (No Filters - Show All):**
 ```json
@@ -133,6 +139,7 @@
       "medicationName": "Aspirin",
       "medicationBrand": "Bayer",
       "medicationForm": "Tablet",
+      "medicationUuid": "550e8400-...",
       "scheduleUuid": "550e8400-...",
       "doseDescription": "500mg",
       "dosageFrequency": "Twice Daily",
@@ -146,7 +153,8 @@
       "startDate": "2025-10-12",
       "endDate": "2025-11-12",
       "isAfterMeal": true,
-      "active": true
+      "active": true,
+      "isFavorite": true
     }
   ]
 }
@@ -510,10 +518,17 @@ GET /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ## 🔟 Update Medication Schedule
 
-**What it does:** Update an existing medication schedule (dates, times, frequency, days, etc.)
+**What it does:** Update an existing medication schedule with enhanced validation and smart schedule management. Creates new schedule when changes are detected, soft-deletes old one.
 
 **URL:** `PUT /api/medications/edit-schedule`  
-**Auth:** ✅ Required  
+**Auth:** ✅ Required
+
+**Enhanced Features:**
+- **Intake Records Check:** If intake records exist, startDate cannot be changed
+- **Date Restrictions:** startDate cannot be set to a date earlier than current startDate
+- **Smart Schedule Management:** Creates new schedule when changes are detected
+- **No Changes Detection:** Returns "no information for update" when no changes are made
+- **Favorite Status Control:** Use `isUpdateMyMedication` to control favorite status  
 
 **Input:**
 ```json
@@ -529,7 +544,8 @@ GET /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
   "isAfterMeal": true,
   "doseDescription": "500 mg",
   "dosageFrequency": "Twice Daily",
-  "daysOfWeek": ["Mon", "Wed", "Fri"]
+  "daysOfWeek": ["Mon", "Wed", "Fri"],
+  "isUpdateMyMedication": true
 }
 ```
 
@@ -556,7 +572,12 @@ GET /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
     "eveningTime": "20:00:00",
     "lastModifiedBy": "user@example.com",
     "lastModifiedDate": "2025-10-15T10:30:00Z",
-    "message": "Successfully updated medication schedule for Aspirin"
+    "message": "Successfully updated medication schedule for Aspirin",
+    "operationType": "CREATE_NEW",
+    "newScheduleUuid": "660e8400-e29b-41d4-a716-446655440001",
+    "newScheduleCreated": true,
+    "oldScheduleDeleted": true,
+    "isFavorite": true
   }
 }
 ```
@@ -579,7 +600,49 @@ GET /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-## 1️⃣1️⃣ Delete Medication Schedule
+## 1️⃣1️⃣ Remove My Medication
+
+**What it does:** Remove a medication from your favorites by setting its favorite status to false for all related schedules.
+
+**URL:** `POST /api/medications/remove-my-medication`  
+**Auth:** ✅ Required
+
+**Input:**
+```json
+{
+  "scheduleUuid": "550e8400-..."
+}
+```
+
+**Output:**
+```json
+{
+  "success": true,
+  "message": "Medication 'Aspirin' removed from favorites successfully",
+  "data": {
+    "scheduleUuid": "550e8400-...",
+    "medicationName": "Aspirin",
+    "medicationBrand": "Bayer",
+    "patientMedicationId": 123,
+    "schedulesUpdated": 3,
+    "removedBy": "user@example.com",
+    "removedAt": "2025-10-15T10:30:00Z",
+    "message": "Successfully removed 'Aspirin' from favorites - 3 schedule(s) updated"
+  }
+}
+```
+
+**Use when:** You want to remove a medication from your "My Medications" list without deleting the schedules.
+
+**Key Features:**
+- **No data loss:** Schedules are not deleted, only marked as non-favorite
+- **Bulk operation:** All schedules for the medication are updated
+- **Reversible:** Can be added back to favorites using edit-schedule
+- **Security:** Only schedules belonging to the current user can be removed
+
+---
+
+## 1️⃣2️⃣ Delete Medication Schedule
 
 **What it does:** Delete (soft delete) a medication schedule. Always allowed. Preserves intake history.
 
@@ -629,7 +692,7 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-## 1️⃣2️⃣ Medication Intake Count Summary
+## 1️⃣3️⃣ Medication Intake Count Summary
 
 **What it does:** Get combined adherence statistics, upcoming doses, and missed doses in one call. Optimized for dashboards.
 
@@ -704,7 +767,7 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-## 1️⃣3️⃣ Medication Schedule Overview
+## 1️⃣4️⃣ Medication Schedule Overview
 
 **What it does:** Get complete schedule overview with all, upcoming, and missed schedules in one call.
 
@@ -764,13 +827,13 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ## 📋 Quick Comparison
 
-| Feature | Search | Add | My Meds | Schedule | Track | Stats | Upcoming | Missed | Get Edit | Update | Delete | Intake Summary | Schedule Overview |
-|---------|--------|-----|---------|----------|-------|-------|----------|--------|----------|--------|--------|----------------|------------------|
-| **Purpose** | Find meds | Add schedule | View active | Daily doses | Mark taken | Adherence | Next doses | Missed list | Prep edit | Save changes | Remove | Combined stats+upcoming | All schedules categorized |
-| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Method** | POST | POST | POST | POST | POST | POST | POST | POST | GET | PUT | DELETE | POST | POST |
-| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Next list | Missed list | Schedule data | Updated | Success | Combined response | Categorized schedules |
-| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | What's next | Adherence | Form pre-fill | Edit schedule | Stop med | Dashboard | Complete overview |
+| Feature | Search | Add | My Meds | Schedule | Track | Stats | Upcoming | Missed | Get Edit | Update | Remove | Delete | Intake Summary | Schedule Overview |
+|---------|--------|-----|---------|----------|-------|-------|----------|--------|----------|--------|--------|--------|----------------|------------------|
+| **Purpose** | Find meds | Add schedule | View active | Daily doses | Mark taken | Adherence | Next doses | Missed list | Prep edit | Save changes | Remove from favorites | Stop med | Combined stats+upcoming | All schedules categorized |
+| **Auth** | ❌ No | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Method** | POST | POST | POST | POST | POST | POST | POST | POST | GET | PUT | POST | DELETE | POST | POST |
+| **Output** | Search results | Schedule | Active meds | Doses+tracking | Intake log | Stats | Next list | Missed list | Schedule data | Updated | Removal confirmation | Success | Combined response | Categorized schedules |
+| **Use For** | Discovery | Create | Current view | Daily tracking | Record | Reports | What's next | Adherence | Form pre-fill | Edit schedule | Remove from favorites | Stop med | Dashboard | Complete overview |
 
 ---
 
@@ -1139,8 +1202,9 @@ DELETE /api/medications/schedule/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
-**Version:** 2.5  
+**Version:** 2.6  
 **Last Updated:** October 21, 2025  
+**New in 2.6:** Enhanced My Medications to show only favorite schedules; Added Remove My Medication endpoint; Enhanced Edit Schedule with validation and smart schedule management; Added `isUpdateMyMedication` field for favorite status control  
 **New in 2.5:** Added `/intake-count-summary` and `/schedule-overview` endpoints; Combined endpoints for optimized dashboard views with 59-60% data reduction  
 **New in 2.4:** Removed My Medication Menu List feature (deprecated); `isAddToMyMedication` field reserved for future use  
 **New in 2.2:** Added DELETE `/schedule/{uuid}` endpoint  

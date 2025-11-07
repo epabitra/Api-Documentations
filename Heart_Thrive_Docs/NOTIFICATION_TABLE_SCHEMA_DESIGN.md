@@ -69,7 +69,7 @@ It supports a hierarchical configuration — **Global → Feature → User → U
 | `user_id` | `NULL` = applies to all users; otherwise, user-specific |
 | `feature_id` | `NULL` = applies to all features; otherwise, feature-specific |
 | `notification_channels` | JSON array of enabled channels (e.g., `["EMAIL","APP_PUSH"]`) |
-| `food_time_schedule` | JSON object defining meal reminder times |
+| `config_details` | JSON object defining meal reminder times |
 | `send_before_minutes` | How many minutes before an event to trigger the reminder |
 | `is_enabled` | Enables or disables the entire config |
 | `is_active` | Soft control for temporary disablement |

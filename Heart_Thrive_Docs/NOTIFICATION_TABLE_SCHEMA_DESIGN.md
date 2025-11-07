@@ -1,192 +1,236 @@
-# 🧩 Notification System Database Design (Enterprise-Grade)
+# 📘 Notification System — Database Design Overview
 
-This document describes the **final database schema** for a **multi-channel notification system**, designed for scalability, configurability, and future extensibility.
+This schema powers a **multi-channel, template-driven notification system**, supporting **Email, SMS, Push, In-App**, and future channels like **WhatsApp**.
 
----
+It ensures:
 
-## ⚙️ Overview
-
-This schema supports:
-- Multiple notification channels (Email, SMS, Push, WhatsApp, etc.)
-- Global and per-user configuration
-- Feature-based notification rules
-- Full delivery audit trail
-- App seen/unseen tracking
-- Soft activation/deactivation (`is_active` on all tables)
-- Extensible provider support (Twilio, Firebase, AWS SES, etc.)
+- ✅ Full configurability (per feature, per user, per channel)  
+- ✅ Template-based message management  
+- ✅ Complete auditability from trigger to delivery  
+- ✅ High performance and reusability  
 
 ---
 
-## 🧱 Design Goals
+## 🧭 Table of Contents
 
-| Goal | Achieved By |
-|------|--------------|
-| Extensible to new channels | `notification_channel` master |
-| Per-user & global configuration | `notification_config` |
-| Feature-based notifications | `notification_feature` |
-| Full delivery audit tracking | `notification_delivery` |
-| Track seen/unseen push notifications | `notification_app_status` |
-| Multiple providers (Twilio, Firebase) | `notification_provider` |
-| Food reminder times | `food_time_schedule` JSON |
-| Early reminders | `send_before_minutes` |
-| Soft disable without delete | `is_active` on all tables |
-
----
-
-## 🗂️ Tables Summary
-
-Below is a table-by-table explanation of purpose, usage, and special columns.
+| # | Table Name | Purpose |
+|---|-------------|----------|
+| 1️⃣ | **notification_channel** | Defines available communication methods (Email, SMS, Push, etc.) |
+| 2️⃣ | **notification_feature** | Defines system features or events that trigger notifications (Food Reminder, etc.) |
+| 3️⃣ | **notification_config** | Stores notification preferences and timing for users/features |
+| 4️⃣ | **notification_template** | Stores per-channel message templates for each feature |
+| 5️⃣ | **notification_trigger** | Logs when and why notifications were triggered |
+| 6️⃣ | **notification** | Represents individual user notifications generated for a trigger |
+| 7️⃣ | **notification_delivery** | Tracks delivery results for each channel per notification |
+| 8️⃣ | **notification_provider** | Manages external providers like Twilio, Firebase, SES, etc. |
+| 9️⃣ | **notification_app_status** | Tracks if in-app notifications were seen or not by users |
 
 ---
 
-### 1️⃣ `notification_channel`
+## 1️⃣ notification_channel
 
-#### 🎯 Purpose
-Defines **all available communication methods** used by the system.
+### 🎯 Purpose
+Defines all possible communication channels supported by the system — such as Email, SMS, Push, or WhatsApp.
 
-#### 🔍 Usage
-Used by `notification_delivery` and `notification_provider`.  
-Add new channels (like WhatsApp or Slack) without altering schema.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `code` | Unique code (e.g., `EMAIL`, `PUSH`, `SMS`, `WHATSAPP`) |
-| `is_active` | Soft enable/disable for channel |
-| `description` | Description or integration notes |
+|---------|-------------|
+| `code` | Unique channel identifier (e.g., EMAIL, SMS, PUSH) |
+| `name` | Channel display name |
+| `description` | Channel details (e.g., used provider or purpose) |
+| `is_active` | Soft-enable or disable a channel globally |
 
 ---
 
-### 2️⃣ `notification_feature`
+## 2️⃣ notification_feature
 
-#### 🎯 Purpose
-Defines **which app features** trigger notifications (e.g., Food Reminder, Medicine Reminder).
+### 🎯 Purpose
+Represents different application features or use cases that can trigger notifications.  
+Example: *Food Reminder, Medicine Reminder, Weight Alert, High-Risk Alert.*
 
-#### 🔍 Usage
-Categorizes notifications for clarity, reports, and configuration.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `code` | Unique system identifier (`FOOD_REMINDER`, `MEDICINE_REMINDER`, etc.) |
-| `default_enabled` | Indicates if the feature is enabled by default |
-| `is_active` | Soft disable for that feature globally |
+|---------|-------------|
+| `code` | Unique identifier (e.g., FOOD_REMINDER) |
+| `default_enabled` | Whether the feature sends notifications by default |
+| `is_active` | Enables/disables the feature across the system |
 
 ---
 
-### 3️⃣ `notification_config`
+## 3️⃣ notification_config
 
-#### 🎯 Purpose
-Central table for **notification settings** — defines what, how, and when to send notifications.  
-Supports **hierarchical configurations** (Global → Feature → User → User+Feature).
+### 🎯 Purpose
+Defines **what notifications** should be sent, **through which channels**, and **when**.  
+It supports a hierarchical configuration — **Global → Feature → User → User+Feature**.
 
-#### 🔍 Usage
-Before sending any notification, the system checks this table to determine:
-- If the feature is enabled for that user
-- Which channels to use
-- Food timing schedules
-- How long before the event to send
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `user_id` | NULL = applies to all users; otherwise user-specific |
-| `feature_id` | NULL = applies to all features; otherwise feature-specific |
-| `is_enabled` | Whether notifications should be sent |
-| `notification_channels` (JSON) | Example: `["EMAIL", "PUSH"]` |
-| `food_time_schedule` (JSON) | Example: `{"breakfast":"09:00","lunch":"14:00"}` |
-| `send_before_minutes` | Send notification X minutes before schedule |
-| `is_active` | Temporarily disable the configuration |
+|---------|-------------|
+| `user_id` | `NULL` = applies to all users; otherwise, user-specific |
+| `feature_id` | `NULL` = applies to all features; otherwise, feature-specific |
+| `notification_channels` | JSON array of enabled channels (e.g., `["EMAIL","APP_PUSH"]`) |
+| `food_time_schedule` | JSON object defining meal reminder times |
+| `send_before_minutes` | How many minutes before an event to trigger the reminder |
+| `is_enabled` | Enables or disables the entire config |
+| `is_active` | Soft control for temporary disablement |
 
-#### ⚙️ Configuration Hierarchy
-
-| Level | user_id | feature_id | Applies To |
-|--------|----------|-------------|-------------|
-| 1️⃣ | NULL | NULL | Global default (all users, all features) |
-| 2️⃣ | NULL | X | All users for a specific feature |
-| 3️⃣ | X | NULL | Specific user, all features |
-| 4️⃣ | X | X | Specific user + specific feature (highest priority) |
+### ⚙️ Hierarchy Logic
+| Level | Applies To |
+|--------|-------------|
+| 1️⃣ Global | All users, all features |
+| 2️⃣ Feature | All users for that feature |
+| 3️⃣ User | All features for that user |
+| 4️⃣ User + Feature | Most specific configuration |
 
 ---
 
-### 4️⃣ `notification`
+## 4️⃣ notification_template 🆕
 
-#### 🎯 Purpose
-Represents a **triggered notification event** (e.g., "Food Reminder for User 101 at 9 AM").
+### 🎯 Purpose
+Stores **message templates per feature and channel**, allowing you to define different messages for **Email, SMS, Push**, etc.
 
-#### 🔍 Usage
-Parent table for delivery records and main log for notification lifecycle.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `feature_id` | Which feature triggered the notification |
-| `user_id` | Who received it |
-| `title`, `message` | The content sent |
-| `triggered_at` | When generated |
-| `status` | Lifecycle status (`PENDING`, `COMPLETED`, `FAILED`) |
-| `retry_count` | How many retries attempted |
-| `is_active` | Enables/hides notification in logs without deletion |
+|---------|-------------|
+| `feature_id` | Which feature this template belongs to |
+| `channel_id` | For which channel this template is used |
+| `title_template` | Title template (used for Email or Push) |
+| `message_template` | Message body template (placeholders like `{userName}`, `{mealTime}`) |
+| `is_default` | Marks as default template for that (feature × channel) |
+| `is_active` | Enables/disables this template |
+| `created_by`, `last_modified_by` | Tracks who created or updated it |
+
+### 🧠 Special Note
+This allows full flexibility, for example:
+- **Food Reminder** → Different text for Email vs Push  
+- **Medicine Reminder** → Personalized message per user or language  
 
 ---
 
-### 5️⃣ `notification_delivery`
+## 5️⃣ notification_trigger 🆕
 
-#### 🎯 Purpose
-Tracks **per-channel delivery status** for every notification (Email, Push, SMS).
+### 🎯 Purpose
+Logs each time the system **triggers a batch of notifications** — e.g., a morning reminder, a password reset event, or a promotional job.
 
-#### 🔍 Usage
-Provides full visibility into success/failure per channel.  
-Useful for debugging and delivery analytics.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `notification_id` | Parent notification |
-| `channel_id` | Which channel used |
+|---------|-------------|
+| `feature_id` | Which feature was triggered |
+| `trigger_type` | How this notification was triggered — `SCHEDULED`, `USER_ACTION`, `SYSTEM_EVENT`, `MANUAL` |
+| `trigger_reference` | External reference ID (e.g., job ID, API ID) |
+| `triggered_at` | Timestamp of when the trigger occurred |
+| `is_active` | Enables or disables trigger record tracking |
+
+### 🧠 Special Note
+This table helps trace the origin of any notification — crucial for **debugging or analytics**  
+(e.g., “Which scheduler job generated this?”).
+
+---
+
+## 6️⃣ notification
+
+### 🎯 Purpose
+Represents **individual user notifications** generated by a specific trigger and feature.
+
+### ⭐ Key Columns
+| Column | Description |
+|---------|-------------|
+| `feature_id` | Which feature notification belongs to |
+| `user_id` | Which user receives it |
+| `trigger_id` | FK → `notification_trigger` (which event caused it) |
+| `status` | Overall notification state (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED`) |
+| `retry_count` | Retry attempts if delivery fails |
+| `triggered_at` | When the notification was generated |
+| `is_active` | Soft deletion flag |
+
+### 🧠 Special Note
+`notification` is the main record per user per trigger, connecting **configuration to delivery attempts**.
+
+---
+
+## 7️⃣ notification_delivery
+
+### 🎯 Purpose
+Tracks **per-channel delivery results** for each notification.  
+Each row = one notification sent via one channel.
+
+### ⭐ Key Columns
+| Column | Description |
+|---------|-------------|
+| `notification_id` | FK → `notification` (which user notification this belongs to) |
+| `channel_id` | FK → `notification_channel` |
+| `template_id` | FK → `notification_template` (which template used) |
 | `status` | `PENDING`, `SENT`, `FAILED`, `RETRYING` |
-| `failure_reason` | Error details if failed |
-| `response_metadata` (JSON) | Provider response or message ID |
-| `is_active` | Allows disabling invalid/old records |
+| `failure_reason` | Error message if failed |
+| `response_metadata` | JSON response from provider |
+| `is_active` | Marks active/inactive delivery record |
+
+### 🧠 Special Note
+Allows **multi-channel tracking** per notification:
+> e.g., Notification #45 → Email ✅ SENT, SMS ❌ FAILED, Push ✅ SENT
 
 ---
 
-### 6️⃣ `notification_provider`
+## 8️⃣ notification_provider
 
-#### 🎯 Purpose
-Manages **external notification providers** for each channel (e.g., Twilio, Firebase).
+### 🎯 Purpose
+Manages **external service providers** for each channel — e.g., **Twilio (SMS)**, **AWS SES (Email)**, **Firebase (Push)**.
 
-#### 🔍 Usage
-Switch providers or maintain multiple integrations easily.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `channel_id` | The channel this provider serves |
-| `name` | Provider name (`Twilio`, `Firebase`, `AWS_SES`) |
-| `config` (JSON) | Provider credentials, API endpoints |
-| `is_active` | Enables or disables specific provider |
+|---------|-------------|
+| `channel_id` | FK → `notification_channel` |
+| `name` | Provider name (Twilio, SES, Firebase) |
+| `config` | JSON config with API credentials or region info |
+| `is_active` | Soft enable/disable provider |
+
+### 🧠 Special Note
+Supports **multi-provider strategy**, e.g. fallback from **AWS SES → SendGrid**.
 
 ---
 
-### 7️⃣ `notification_app_status`
+## 9️⃣ notification_app_status
 
-#### 🎯 Purpose
-Tracks **seen/unseen status** for in-app (push) notifications.
+### 🎯 Purpose
+Tracks whether **in-app notifications (push)** were seen or not by users.
 
-#### 🔍 Usage
-Used in mobile apps to display unread notification counts.
-
-#### ⭐ Key Columns
+### ⭐ Key Columns
 | Column | Description |
-|---------|--------------|
-| `notification_id` | Related notification |
-| `user_id` | Who received it |
-| `is_seen` | TRUE if user opened the notification |
-| `seen_at` | When the user saw it |
-| `is_active` | Used to deactivate entries (e.g., user cleared history) |
+|---------|-------------|
+| `notification_id` | FK → `notification` |
+| `user_id` | FK → `users` |
+| `is_seen` | Whether user opened the notification |
+| `seen_at` | Timestamp of when seen |
+| `is_active` | Marks valid/archived records |
+
+### 🧠 Special Note
+Helps drive **“Unread Notifications Count”** and track **user engagement**.
 
 ---
 
-## 🧠 Data Flow Summary
+## 🧩 Overall Flow Summary
 
+┌────────────────────────────────────────────────────────────┐
+│ Configuration Layer │
+│ notification_feature → notification_config → notification_template │
+└────────────────────────────────────────────────────────────┘
+↓
+┌────────────────────────────────────────────────────────────┐
+│ Trigger Layer │
+│ notification_trigger (event logs) │
+└────────────────────────────────────────────────────────────┘
+↓
+┌────────────────────────────────────────────────────────────┐
+│ Runtime Layer │
+│ notification → notification_delivery │
+└────────────────────────────────────────────────────────────┘
+↓
+┌────────────────────────────────────────────────────────────┐
+│ Tracking Layer │
+│ notification_app_status │
+└────────────────────────────────────────────────────────────┘
+↓
+┌────────────────────────────────────────────────────────────┐
+│ Reference Layer │
+│ notification_channel → notification_provider │
+└────────────────────────────────────────────────────────────┘

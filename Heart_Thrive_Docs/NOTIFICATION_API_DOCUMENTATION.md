@@ -2,8 +2,9 @@
 
 ## Table of Contents
 1. [Get User Notifications](#1-get-user-notifications) - Retrieve paginated list of notifications for the authenticated user
-2. [Mark Notifications as Seen](#2-mark-notifications-as-seen) - Mark multiple notifications as seen using UUIDs
-3. [Mark Notifications as Unseen](#3-mark-notifications-as-unseen) - Mark multiple notifications as unseen using UUIDs
+2. [Get Notification by UUID](#2-get-notification-by-uuid) - Retrieve a specific notification by UUID for the authenticated user
+3. [Mark Notifications as Seen](#3-mark-notifications-as-seen) - Mark multiple notifications as seen using UUIDs
+4. [Mark Notifications as Unseen](#4-mark-notifications-as-unseen) - Mark multiple notifications as unseen using UUIDs
 
 ---
 
@@ -11,8 +12,10 @@
 
 This API provides endpoints for managing user notifications in the Heart Thrive application. It allows users to:
 - Retrieve their notifications with pagination support
+- Get a specific notification by UUID
 - Filter notifications by seen/unseen status
 - Mark multiple notifications as seen or unseen in bulk operations
+- View processed notification title and message (ready to display)
 
 All endpoints require authentication and automatically filter results based on the authenticated user.
 
@@ -194,7 +197,9 @@ Content-Type: application/json
     "createdBy": "system",
     "lastModifiedBy": null,
     "createdAt": "2024-01-15T10:30:00Z",
-    "lastModifiedAt": "2024-01-15T10:30:00Z"
+    "lastModifiedAt": "2024-01-15T10:30:00Z",
+    "title": "High Sodium Intake Alert",
+    "message": "Hi John, your sodium intake is 2800 mg, which exceeds the recommended limit of 2500 mg. Please reduce your sodium consumption."
   },
   {
     "uuid": "550e8400-e29b-41d4-a716-446655440001",
@@ -205,7 +210,9 @@ Content-Type: application/json
     "createdBy": "system",
     "lastModifiedBy": "user",
     "createdAt": "2024-01-15T09:15:00Z",
-    "lastModifiedAt": "2024-01-15T11:00:00Z"
+    "lastModifiedAt": "2024-01-15T11:00:00Z",
+    "title": "High Sodium Intake Alert",
+    "message": "Hi John, your sodium intake is 2750 mg, which exceeds the recommended limit of 2500 mg. Please reduce your sodium consumption."
   }
 ]
 ```
@@ -219,12 +226,16 @@ Content-Type: application/json
 | `seen` | Boolean | Whether the notification has been seen (`true`) or not (`false`) |
 | `seenAt` | String (ISO 8601) | Timestamp when the notification was marked as seen. `null` if not seen yet |
 | `active` | Boolean | Whether the notification is active |
+| `title` | String | Processed notification title with variables filled (ready to display) |
+| `message` | String | Processed notification message with variables filled (ready to display) |
 | `createdBy` | String | User/system who created the notification |
 | `lastModifiedBy` | String | User/system who last modified the notification. `null` if never modified |
 | `createdAt` | String (ISO 8601) | Timestamp when the notification was created |
 | `lastModifiedAt` | String (ISO 8601) | Timestamp when the notification was last modified |
 
-**Important:** Only `uuid` is exposed to the frontend. All operations (mark as seen/unseen) must use the `uuid` field.
+**Important:** 
+- Only `uuid` is exposed to the frontend. All operations (mark as seen/unseen, get by UUID) must use the `uuid` field.
+- `title` and `message` are already processed with template variables filled, ready to display to users.
 
 #### Error Responses
 
@@ -235,7 +246,79 @@ Content-Type: application/json
 
 ---
 
-### 2. Mark Notifications as Seen
+### 2. Get Notification by UUID
+
+Retrieve a specific notification by UUID for the authenticated user.
+
+#### Endpoint
+```
+GET /api/notifications/{uuid}
+```
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `uuid` | String | Yes | The UUID of the notification to retrieve (36 characters) |
+
+#### Request Example
+
+```http
+GET /api/notifications/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer <your-jwt-token>
+```
+
+#### Response
+
+**Status Code:** `200 OK` (if found) or `404 Not Found` (if not found or doesn't belong to user)
+
+**Response Body (200 OK):**
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": 123,
+  "seen": false,
+  "seenAt": null,
+  "active": true,
+  "title": "High Sodium Intake Alert",
+  "message": "Hi John, your sodium intake is 2800 mg, which exceeds the recommended limit of 2500 mg. Please reduce your sodium consumption.",
+  "createdBy": "system",
+  "lastModifiedBy": null,
+  "createdAt": "2024-01-15T10:30:00Z",
+  "lastModifiedAt": "2024-01-15T10:30:00Z"
+}
+```
+
+**Response Body (404 Not Found):**
+```json
+{
+  "type": "https://www.jhipster.tech/problem/entity-not-found",
+  "title": "Not Found",
+  "status": 404,
+  "detail": "Notification not found"
+}
+```
+
+#### Response Fields
+
+Same as [Get User Notifications](#1-get-user-notifications) response fields.
+
+#### Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| `401 Unauthorized` | Missing or invalid authentication token |
+| `404 Not Found` | Notification not found or doesn't belong to the authenticated user |
+| `500 Internal Server Error` | Server error occurred |
+
+**Important Notes:**
+- The notification must belong to the authenticated user
+- Only active notifications are returned
+- Use this endpoint when you need detailed information about a specific notification
+
+---
+
+### 3. Mark Notifications as Seen
 
 Mark multiple notifications as seen for the authenticated user.
 
@@ -321,7 +404,7 @@ Content-Type: application/json
 
 ---
 
-### 3. Mark Notifications as Unseen
+### 4. Mark Notifications as Unseen
 
 Mark multiple notifications as unseen for the authenticated user.
 
@@ -420,6 +503,8 @@ interface NotificationAppStatusDTO {
   seen: boolean;                  // Seen status
   seenAt: string | null;          // ISO 8601 timestamp or null
   active: boolean;                // Active status
+  title: string;                  // Processed notification title (ready to display)
+  message: string;                // Processed notification message (ready to display)
   createdBy: string;              // Creator identifier
   lastModifiedBy: string | null;  // Last modifier or null
   createdAt: string;             // ISO 8601 timestamp
@@ -557,7 +642,48 @@ const unseenNotifications = await fetchUnseenNotifications();
 console.log(`You have ${unseenNotifications.length} unseen notifications`);
 ```
 
-#### 3. Mark Notifications as Seen
+#### 3. Get Specific Notification by UUID
+
+```javascript
+async function getNotificationByUuid(uuid) {
+  const token = localStorage.getItem('authToken');
+  
+  if (!uuid || uuid.trim().length === 0) {
+    throw new Error('Notification UUID cannot be empty');
+  }
+  
+  const response = await fetch(`/api/notifications/${uuid}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 404) {
+    return null; // Notification not found
+  }
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+  }
+  
+  return await response.json();
+}
+
+// Usage
+const notification = await getNotificationByUuid('550e8400-e29b-41d4-a716-446655440000');
+if (notification) {
+  console.log('Title:', notification.title);
+  console.log('Message:', notification.message);
+  console.log('Seen:', notification.seen);
+} else {
+  console.log('Notification not found');
+}
+```
+
+#### 4. Mark Notifications as Seen
 
 ```javascript
 async function markAsSeen(notificationUuids) {
@@ -602,7 +728,7 @@ const allUuids = notifications.map(n => n.uuid);
 await markAsSeen(allUuids);
 ```
 
-#### 4. Mark Notifications as Unseen
+#### 5. Mark Notifications as Unseen
 
 ```javascript
 async function markAsUnseen(notificationUuids) {
@@ -639,7 +765,7 @@ await markAsUnseen([
 ]);
 ```
 
-#### 5. Complete React Hook Example
+#### 6. Complete React Hook Example
 
 ```javascript
 import { useState, useEffect, useCallback } from 'react';
@@ -692,6 +818,31 @@ function useNotifications() {
       setLoading(false);
     }
   }, [token, pagination.size]);
+  
+  const getNotificationByUuid = useCallback(async (uuid) => {
+    try {
+      const response = await fetch(`/api/notifications/${uuid}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.status === 404) {
+        return null;
+      }
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch notification');
+      }
+      
+      return await response.json();
+    } catch (err) {
+      setError(err.message);
+      return null;
+    }
+  }, [token]);
   
   const markAsSeen = useCallback(async (uuids) => {
     try {
@@ -749,6 +900,7 @@ function useNotifications() {
     error,
     pagination,
     fetchNotifications,
+    getNotificationByUuid,
     markAsSeen,
     markAsUnseen
   };
@@ -777,7 +929,10 @@ function NotificationList() {
       <h2>Notifications ({pagination.totalCount})</h2>
       {notifications.map(notification => (
         <div key={notification.uuid}>
-          <p>{notification.uuid} - Seen: {notification.seen ? 'Yes' : 'No'}</p>
+          <h3>{notification.title || 'Notification'}</h3>
+          <p>{notification.message || 'No message'}</p>
+          <p>Seen: {notification.seen ? 'Yes' : 'No'}</p>
+          <p>Created: {new Date(notification.createdAt).toLocaleString()}</p>
           {!notification.seen && (
             <button onClick={() => handleMarkAsSeen(notification.uuid)}>
               Mark as Seen
@@ -849,7 +1004,12 @@ For questions or issues regarding the Notification API, please contact:
 
 ## Changelog
 
-### Version 1.1.0 (Current)
+### Version 1.2.0 (Current)
+- **NEW:** Added GET `/api/notifications/{uuid}` endpoint to retrieve a specific notification by UUID
+- **NEW:** Added `title` and `message` fields to notification responses (processed template content ready to display)
+- Enhanced notification responses with processed content for immediate frontend display
+
+### Version 1.1.0
 - **BREAKING CHANGE:** Removed all entity IDs from API responses
 - **BREAKING CHANGE:** Changed `notificationIds` to `notificationUuids` in request bodies
 - Only UUIDs are exposed to frontend for security
@@ -864,7 +1024,7 @@ For questions or issues regarding the Notification API, please contact:
 
 ---
 
-**Document Version:** 1.1.0  
-**Last Updated:** January 2024  
+**Document Version:** 1.2.0  
+**Last Updated:** November 2024  
 **API Version:** 0.0.1
 

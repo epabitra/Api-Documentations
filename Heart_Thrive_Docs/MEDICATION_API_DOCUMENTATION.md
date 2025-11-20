@@ -154,7 +154,7 @@ You can either:
 | morningTime | Time | No** | Morning dose time | "08:00:00" |
 | afternoonTime | Time | No** | Afternoon dose time | "14:00:00" |
 | eveningTime | Time | No** | Evening dose time | "20:00:00" |
-| isAfterMeal | Boolean | No | Take after meal? | true |
+| afterMeal | Boolean | No | Take after meal? | true |
 | doseDescription | String | No | Dosage amount | "500mg" |
 | dosageFrequency | String | No | How often to take | "Twice Daily" |
 | daysOfWeek | Array | No | Which days to take | ["Mon", "Wed", "Fri"] |
@@ -193,7 +193,7 @@ Content-Type: application/json
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500mg",
   "dosageFrequency": "Weekly Twice",
   "daysOfWeek": ["Mon", "Wed"],
@@ -220,7 +220,7 @@ Content-Type: application/json
   "afternoon": false,
   "evening": false,
   "morningTime": "09:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "1 capsule",
   "dosageFrequency": "Daily",
   "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -2699,7 +2699,7 @@ This endpoint allows users to edit their existing medication schedules with enha
 | morningTime | Time | No | Morning dose time | "08:00:00" |
 | afternoonTime | Time | No | Afternoon dose time | "14:00:00" |
 | eveningTime | Time | No | Evening dose time | "20:00:00" |
-| isAfterMeal | Boolean | No | Take after meal | true |
+| afterMeal | Boolean | No | Take after meal | true |
 | doseDescription | String | No | Dosage amount | "500 mg" |
 | dosageFrequency | String | No | How often to take | "Twice Daily" |
 | daysOfWeek | Array | No | Days to take | ["Mon", "Wed", "Fri"] |
@@ -2734,7 +2734,7 @@ Returns updated schedule details wrapped in a success response.
 | doseDescription | String | Updated dose description |
 | dosageFrequency | String | Updated dosage frequency |
 | daysOfWeek | String | Updated days (comma-separated) |
-| isAfterMeal | Boolean | Updated meal timing |
+| afterMeal | Boolean | Updated meal timing |
 | isMorning | Boolean | Updated morning flag |
 | isAfterNoon | Boolean | Updated afternoon flag |
 | isEvening | Boolean | Updated evening flag |
@@ -2767,7 +2767,7 @@ Content-Type: application/json
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500 mg",
   "dosageFrequency": "Twice Daily",
   "daysOfWeek": ["Mon", "Wed", "Fri"],
@@ -2791,7 +2791,7 @@ Content-Type: application/json
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500 mg",
   "dosageFrequency": "Twice Daily",
   "daysOfWeek": ["Mon", "Wed", "Fri"],
@@ -2815,7 +2815,7 @@ Content-Type: application/json
   "evening": true,
   "morningTime": "08:00:00",
   "eveningTime": "20:00:00",
-  "isAfterMeal": true,
+  "afterMeal": true,
   "doseDescription": "500 mg",
   "dosageFrequency": "Twice Daily",
   "daysOfWeek": ["Mon", "Wed", "Fri"]

@@ -1,8 +1,21 @@
 # Medication API Documentation
 
+**Version:** 2.6  
+**Last Updated:** 2024  
+**Author:** Development Team
+
+---
+
 ## Overview
 
-This document describes thirteen endpoints for managing medications in the HeartThrive application. These APIs allow users to search for medications, add medications to their profile, view their medication schedules, track daily medication intake with detailed schedule listings, record intake tracking, analyze adherence statistics, view upcoming doses, review missed medications, retrieve schedule details for editing, update existing schedules, delete medication schedules, get combined intake summaries, and view complete schedule overviews.
+This document describes **14 user-facing endpoints** for managing medications in the HeartThrive application. These APIs allow users to search for medications, add medications to their profile, view their medication schedules, track daily medication intake with detailed schedule listings, record intake tracking, analyze adherence statistics, view upcoming doses, review missed medications, retrieve schedule details for editing, update existing schedules, delete medication schedules, get combined intake summaries, and view complete schedule overviews.
+
+**Key Features:**
+- **Automatic Reminder System Integration**: Medication reminders are automatically created/updated/deleted when schedules are managed
+- **Intake Tracking**: Track medication adherence with detailed intake logging
+- **Adherence Analytics**: Comprehensive statistics and reporting
+- **Schedule Management**: Full CRUD operations with history tracking
+- **Timezone Support**: Proper timezone handling for all date/time operations
 
 ---
 
@@ -22,6 +35,8 @@ This document describes thirteen endpoints for managing medications in the Heart
 12. [Delete Medication Schedule](#12-delete-medication-schedule) - *Remove/stop medication schedule*
 13. [Medication Intake Count Summary](#13-medication-intake-count-summary) - *Combined adherence stats and upcoming doses*
 14. [Medication Schedule Overview](#14-medication-schedule-overview) - *Complete schedule view with all categories*
+15. [Reminder System Integration](#15-reminder-system-integration) - *Automatic reminder creation and management*
+16. [Medication System Scenarios](#16-medication-system-scenarios) - *All scenarios and use cases*
 
 ---
 
@@ -3893,13 +3908,929 @@ A: Both work! DELETE is quicker for immediate removal. UPDATE with endDate gives
 
 A: No. Past intake records are preserved, so historical adherence data remains intact. Only future schedules are prevented.
 
+**Q: Are reminders automatically created when I add a medication?**
+
+A: Yes. When you create a medication schedule via `/add` or `/create`, the system automatically creates a reminder record. This reminder is used by the ReminderSchedulerService to send medication reminder notifications at scheduled times.
+
+**Q: What happens to reminders when I update a schedule?**
+
+A: When you update a schedule and a new schedule is created (CREATE_NEW operation), the old reminder is deleted and a new reminder is created for the new schedule. This ensures reminders always match the current schedule configuration.
+
+**Q: What happens to reminders when I delete a schedule?**
+
+A: The schedule is soft-deleted (active=false). Reminders are automatically cleaned up when schedules become inactive. The ReminderSchedulerService only processes reminders for active schedules.
+
 ---
 
-**API Version:** 2.5
-**Last Updated:** October 21, 2025  
+## 15. Reminder System Integration
+
+### Overview
+
+The medication system is tightly integrated with the automated reminder system. When medication schedules are created, updated, or deleted, reminders are automatically managed to ensure users receive timely medication reminder notifications.
+
+### Automatic Reminder Creation
+
+**When:** Medication schedule is created via `/add` or `/create` endpoints
+
+**What Happens:**
+1. Schedule is saved to `patient_medication_schedule` table
+2. `ReminderService.createOrUpdateReminderFromSchedule()` is called automatically
+3. Reminder record is created in `reminder` table with:
+   - `entity_type`: "MEDICATION_SCHEDULE"
+   - `entity_id`: Schedule ID (as string)
+   - `config_json`: RRULE and timings extracted from schedule
+   - `metadata`: Medication name and dose description
+   - `timezone`: User's timezone
+4. `ReminderDeliveryGenerationService` generates `reminder_delivery` records for next N occurrences
+5. ReminderSchedulerService processes deliveries and triggers notifications
+
+**Example Flow:**
+```
+POST /api/medications/add
+  ↓
+Create PatientMedicationSchedule
+  ↓
+reminderService.createOrUpdateReminderFromSchedule(schedule)
+  ↓
+Create Reminder Entity
+  ↓
+Generate ReminderDelivery Records (for next occurrences)
+  ↓
+ReminderSchedulerService (runs every minute)
+  ↓
+Find Pending Deliveries (runTimeUtc <= now)
+  ↓
+Send MEDICATION_REMINDER Notification
+```
+
+### Reminder Update on Schedule Change
+
+**When:** Schedule is updated via `/edit-schedule` endpoint and operation type is "CREATE_NEW"
+
+**What Happens:**
+1. Old schedule is soft-deleted (active=false)
+2. Old reminder is deleted via `reminderService.deleteReminderForSchedule(oldScheduleId)`
+3. New schedule is created with updated values
+4. New reminder is created via `reminderService.createOrUpdateReminderFromSchedule(newSchedule)`
+5. New reminder_delivery records are generated for new schedule
+
+**Why:** Preserves medication history while ensuring reminders match current schedule configuration
+
+### Reminder Configuration
+
+**RRULE Generation:**
+- **Daily Pattern**: `FREQ=DAILY`
+- **Custom Pattern**: `FREQ=WEEKLY;BYDAY=MO,WE,FR` (based on daysOfWeek)
+- Extracted from schedule's `daysOfWeek` field
+
+**Timings:**
+- Extracted from schedule's time slots (morningTime, afternoonTime, eveningTime)
+- Stored as array: `["07:00", "14:00", "19:00"]`
+
+**Metadata:**
+```json
+{
+  "medication_name": "Aspirin",
+  "dose_description": "100mg"
+}
+```
+
+### Reminder Delivery Processing
+
+**ReminderSchedulerService** runs every minute and:
+1. Finds pending `reminder_delivery` records where `runTimeUtc <= now`
+2. Groups deliveries by (runTimeUtc, subtype, userId) for batching
+3. Processes each delivery:
+   - **MEDICATION_REMINDER**: Check if medication already taken → Send reminder if not taken
+   - **MISSED_MEDICATION_CHECK**: Check if medication logged → Send missed notification if not logged
+4. Marks deliveries as SENT after successful notification
+
+**Batching:**
+- Multiple medications at same time are batched into single notification
+- Reduces notification spam for users with multiple medications
+
+### Reminder Deletion
+
+**When:** Schedule is soft-deleted or replaced
+
+**What Happens:**
+1. `reminderService.deleteReminderForSchedule(scheduleId)` is called
+2. All `reminder_delivery` records for that reminder are deleted
+3. Reminder record is deleted from `reminder` table
+
+**Note:** Reminder deletion failures don't block schedule operations (logged but non-blocking)
+
+---
+
+## 16. Medication System Scenarios
+
+This section documents all scenarios handled by the medication system, written from an experienced developer's perspective for future reference.
+
+### Scenario 1: Adding New Medication (New Medication Entry)
+
+**Trigger:** User searches for medication, doesn't find it, creates new medication with schedule
+
+**Flow:**
+1. User calls `POST /api/medications/add` with `medicationUuid=null`
+2. System creates new `Medication` entity
+3. System creates `PatientMedication` link (user → medication)
+4. System creates `PatientMedicationSchedule` with schedule details
+5. **Automatic:** System creates `Reminder` entity for schedule
+6. **Automatic:** System generates `ReminderDelivery` records for next occurrences
+7. Returns schedule DTO with UUID
+
+**Example Request:**
+```json
+{
+  "medicationUuid": null,
+  "medicationName": "Custom Medication",
+  "medicationBrand": "Generic",
+  "doseDescription": "50mg",
+  "startDate": "2024-01-15",
+  "endDate": "2024-03-15",
+  "daysOfWeek": ["Mon", "Wed", "Fri"],
+  "morning": true,
+  "morningTime": "08:00",
+  "isAfterMeal": true,
+  "isAddToMyMedication": true
+}
+```
+
+**What Gets Created:**
+- 1 Medication record
+- 1 PatientMedication record
+- 1 PatientMedicationSchedule record
+- 1 Reminder record
+- ~20-30 ReminderDelivery records (for next occurrences)
+
+**Handled By:**
+- `MedicationService.addMedication()`
+- `ReminderService.createOrUpdateReminderFromSchedule()`
+
+---
+
+### Scenario 2: Adding Existing Medication (Medication Already in Database)
+
+**Trigger:** User searches for medication, finds it, adds to their profile
+
+**Flow:**
+1. User calls `POST /api/medications/add` with `medicationUuid` provided
+2. System fetches existing `Medication` by UUID
+3. System creates or gets existing `PatientMedication` link
+4. System creates `PatientMedicationSchedule`
+5. **Automatic:** System creates `Reminder` entity
+6. **Automatic:** System generates `ReminderDelivery` records
+7. Returns schedule DTO
+
+**Example Request:**
+```json
+{
+  "medicationUuid": "550e8400-e29b-41d4-a716-446655440000",
+  "startDate": "2024-01-15",
+  "endDate": "2024-03-15",
+  "daysOfWeek": ["Mon", "Wed", "Fri"],
+  "morning": true,
+  "morningTime": "08:00",
+  "isAfterMeal": true,
+  "isAddToMyMedication": true
+}
+```
+
+**What Gets Created:**
+- 0 Medication records (uses existing)
+- 0 or 1 PatientMedication record (creates if doesn't exist)
+- 1 PatientMedicationSchedule record
+- 1 Reminder record
+- ~20-30 ReminderDelivery records
+
+---
+
+### Scenario 3: Replacing Existing Schedule (User Already Has Active Schedule)
+
+**Trigger:** User adds medication, but already has an active schedule for same PatientMedication
+
+**Flow:**
+1. System detects existing active schedule for same `patient_medication_id`
+2. Old schedule is archived to history (INSERT history record)
+3. **Automatic:** Old reminder is deleted
+4. Old schedule is soft-deleted (active=false)
+5. New schedule is created
+6. **Automatic:** New reminder is created
+7. Returns new schedule DTO
+
+**Why:** Prevents duplicate active schedules for same medication
+
+**Handled By:**
+- `MedicationService.addMedication()` → `createMedicationSchedule()`
+
+---
+
+### Scenario 4: Tracking Medication Intake (Mark as Taken)
+
+**Trigger:** User takes medication and marks it as taken in the app
+
+**Flow:**
+1. User calls `POST /api/medications/track-intake` with `isTaken=true`
+2. System finds or creates `PatientMedicationIntake` record for date
+3. System updates specific time slot flag (isMorning/isAfterNoon/isEvening)
+4. System records timestamp (morningTime/afternoonTime/eveningTime) = current UTC time
+5. Returns tracking confirmation
+
+**Example Request:**
+```json
+{
+  "scheduleUuid": "abc-123-def-456",
+  "date": "15-01-2024",
+  "timeSlot": "Morning",
+  "isTaken": true,
+  "timezone": "Asia/Kolkata"
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Medication intake tracked successfully",
+  "data": {
+    "scheduleUuid": "abc-123-def-456",
+    "medicationName": "Aspirin",
+    "date": "2024-01-15",
+    "timeSlot": "Morning",
+    "isTaken": true,
+    "trackedAt": "2024-01-15T02:30:00Z"
+  }
+}
+```
+
+**What Gets Created/Updated:**
+- 1 PatientMedicationIntake record (created if doesn't exist, updated if exists)
+- Time slot flag set to true
+- Timestamp recorded
+
+**Handled By:**
+- `MedicationService.trackMedicationIntake()`
+
+---
+
+### Scenario 5: Untracking Medication Intake (Mark as Not Taken)
+
+**Trigger:** User accidentally marked medication as taken, wants to unmark it
+
+**Flow:**
+1. User calls `POST /api/medications/track-intake` with `isTaken=false`
+2. System finds existing `PatientMedicationIntake` record
+3. System sets time slot flag to false
+4. System clears timestamp (sets to null)
+5. Returns tracking confirmation
+
+**Note:** Intake record remains in database (for audit), but time slot is marked as not taken
+
+---
+
+### Scenario 6: Medication Reminder Notification (Scheduled Time Reached)
+
+**Trigger:** ReminderSchedulerService finds pending ReminderDelivery with subtype=MEDICATION_REMINDER
+
+**Flow:**
+1. ReminderSchedulerService runs every minute
+2. Finds ReminderDelivery where `runTimeUtc <= now` and `status=PENDING`
+3. Checks if medication already taken (via PatientMedicationIntake)
+4. If taken → Skip notification, mark delivery as SENT
+5. If not taken → Send MEDICATION_REMINDER notification via NotificationService
+6. Mark delivery as SENT
+
+**Example:**
+- Medication: Aspirin 100mg
+- Scheduled: 2024-01-15 08:00 (Morning)
+- User hasn't logged intake yet
+- System sends reminder notification: "It's time for your Morning medication! Take Aspirin 100mg now..."
+
+**Handled By:**
+- `ReminderSchedulerService` (scheduler)
+- `ReminderNotificationService.sendMedicationReminder()`
+- `NotificationService.triggerMedicationReminderNotification()`
+
+---
+
+### Scenario 7: Missed Medication Check Notification (Time Passed, Not Taken)
+
+**Trigger:** ReminderSchedulerService finds ReminderDelivery with subtype=MISSED_MEDICATION_CHECK
+
+**Flow:**
+1. ReminderSchedulerService finds pending MISSED_MEDICATION_CHECK delivery
+2. Checks PatientMedicationIntake table for scheduled date and time slot
+3. If medication logged → Mark as SENT (no notification)
+4. If medication not logged → Send MISSED_MEDICATION_CHECK notification
+5. Mark delivery as SENT
+
+**Example:**
+- Medication: Aspirin 100mg
+- Scheduled: 2024-01-15 08:00
+- Check time: 2024-01-15 08:30 (30 minutes after scheduled time)
+- User hasn't logged intake
+- System sends missed notification: "We noticed Aspirin scheduled for Morning hasn't been logged yet..."
+
+**Handled By:**
+- `ReminderSchedulerService`
+- `ReminderNotificationService.checkMissedMedication()`
+- `NotificationService.triggerMissedMedicationNotification()`
+
+---
+
+### Scenario 8: Batched Medication Reminder (Multiple Medications at Same Time)
+
+**Trigger:** Multiple ReminderDelivery records have same runTimeUtc, same userId
+
+**Flow:**
+1. ReminderSchedulerService groups deliveries by (runTimeUtc, subtype, userId)
+2. If group size > 1, process as batch
+3. Collects all medication names from reminders
+4. Sends single batched notification with all medication names
+5. Marks all deliveries as SENT
+
+**Example:**
+- User has 3 medications scheduled for 08:00:
+  - Aspirin 100mg
+  - Metformin 500mg
+  - Lisinopril 10mg
+- System sends single notification: "It's time for your Morning medications! Take Aspirin 100mg, Metformin 500mg, and Lisinopril 10mg now..."
+
+**Handled By:**
+- `ReminderSchedulerService` (batches deliveries)
+- `ReminderNotificationService.sendBatchedMedicationReminder()`
+- `NotificationService.triggerBatchedMedicationReminderNotification()`
+
+---
+
+### Scenario 9: Updating Schedule (No Intake Records, No Start Date Change)
+
+**Trigger:** User updates schedule via `/edit-schedule`, no intake records exist, startDate unchanged
+
+**Flow:**
+1. System validates: No intake records found
+2. System validates: startDate not changed
+3. System validates: Favorite status matches (or only favorite status changed)
+4. Operation type: "UPDATE"
+5. Directly updates existing schedule fields
+6. **No reminder recreation** (reminder already matches schedule)
+7. Returns UPDATE response
+
+**What Gets Updated:**
+- Schedule fields (endDate, daysOfWeek, time slots, etc.)
+- Same schedule record (no new schedule created)
+
+**Handled By:**
+- `MedicationService.updateMedicationSchedule()`
+
+---
+
+### Scenario 10: Updating Schedule (Intake Records Exist OR Start Date Changed)
+
+**Trigger:** User updates schedule, but intake records exist OR startDate is changed
+
+**Flow:**
+1. System validates: Intake records exist OR startDate changed
+2. Operation type: "CREATE_NEW"
+3. Old schedule is cloned for history
+4. Old schedule is soft-deleted (active=false)
+5. **Automatic:** Old reminder is deleted
+6. New schedule is created with updated values
+7. **Automatic:** New reminder is created
+8. History record created for old schedule (operation: CREATE_NEW)
+9. History record created for new schedule (operation: INSERT)
+10. Returns CREATE_NEW response with newScheduleUuid
+
+**Why:** Preserves medication history while allowing schedule changes
+
+**Example:**
+- User has been taking Aspirin since Jan 1
+- User wants to extend endDate from Mar 15 to Jun 15
+- System creates new schedule (Jan 1 to Jun 15)
+- Old schedule (Jan 1 to Mar 15) is archived
+- New reminder created for extended schedule
+
+**Handled By:**
+- `MedicationService.updateMedicationSchedule()`
+- `ReminderService.deleteReminderForSchedule()` (old)
+- `ReminderService.createOrUpdateReminderFromSchedule()` (new)
+
+---
+
+### Scenario 11: Updating Schedule (No Changes Detected)
+
+**Trigger:** User calls `/edit-schedule` but all values match existing schedule
+
+**Flow:**
+1. System compares all fields
+2. No changes detected
+3. Operation type: "NO_CHANGES"
+4. Returns response indicating no changes
+5. **No database updates**
+6. **No reminder changes**
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "No changes detected in schedule information",
+  "data": {
+    "operationType": "NO_CHANGES",
+    "scheduleUuid": "abc-123-def-456",
+    "newScheduleCreated": false,
+    "oldScheduleDeleted": false,
+    "medicationName": "Aspirin"
+  }
+}
+```
+
+---
+
+### Scenario 12: Deleting Medication Schedule
+
+**Trigger:** User deletes schedule via `DELETE /api/medications/schedule/{scheduleUuid}`
+
+**Flow:**
+1. System finds schedule by UUID
+2. System validates schedule belongs to user
+3. System creates history record (operation: DELETE)
+4. Schedule is soft-deleted (active=false)
+5. Schedule removed from active lists
+6. **Note:** Reminder cleanup happens automatically (ReminderSchedulerService only processes active schedules)
+7. Returns deletion confirmation
+
+**What Gets Deleted:**
+- Schedule active flag set to false
+- Schedule removed from `/my-medications` and `/schedule-list`
+
+**What Gets Preserved:**
+- All intake records (for medical history)
+- Schedule record itself (soft-deleted, not hard-deleted)
+- History record (for audit trail)
+
+**Handled By:**
+- `MedicationService.deleteMedicationSchedule()`
+
+---
+
+### Scenario 13: Getting Schedule List with Intake Status
+
+**Trigger:** User calls `POST /api/medications/schedule-list` to view daily schedule
+
+**Flow:**
+1. System generates all scheduled dates in range (respecting daysOfWeek)
+2. System expands schedules by time slots (morning, afternoon, evening)
+3. For each date + time slot combination:
+   - Checks PatientMedicationIntake table
+   - Sets `isTaken` flag based on intake record
+4. Returns expanded schedule list with intake status
+
+**Example:**
+- Medication scheduled: Mon/Wed/Fri, Morning + Evening
+- Date range: 2024-01-15 to 2024-01-20
+- System generates:
+  - 2024-01-15 (Mon) - Morning: isTaken=false
+  - 2024-01-15 (Mon) - Evening: isTaken=false
+  - 2024-01-17 (Wed) - Morning: isTaken=true (user logged intake)
+  - 2024-01-17 (Wed) - Evening: isTaken=false
+  - etc.
+
+**Handled By:**
+- `MedicationService.getMedicationScheduleList()`
+
+---
+
+### Scenario 14: Calculating Adherence Statistics
+
+**Trigger:** User calls `POST /api/medications/intake-stats` to view adherence report
+
+**Flow:**
+1. System generates all scheduled doses for date range
+2. System applies time slot filters (if provided)
+3. For each scheduled dose:
+   - Checks if time has passed (compared to current time in user timezone)
+   - Checks PatientMedicationIntake for intake record
+   - Categorizes as: Taken, Not Taken, or Missed
+4. Calculates statistics:
+   - Total Scheduled
+   - Total Taken
+   - Total Missed
+   - Adherence Percentage = (Taken / Scheduled) * 100
+5. Optionally provides per-medication breakdown
+
+**Example:**
+- Date range: 2024-01-01 to 2024-01-07 (7 days)
+- Medication: Aspirin (Morning + Evening, Daily)
+- Scheduled doses: 14 (7 days × 2 time slots)
+- Taken doses: 12 (user logged 12 times)
+- Missed doses: 2 (2 doses passed but not logged)
+- Adherence: 85.71%
+
+**Handled By:**
+- `MedicationService.getMedicationIntakeStats()`
+
+---
+
+### Scenario 15: Getting Upcoming Schedules (Next Time Slot Only)
+
+**Trigger:** User calls `/upcoming-schedules` with `isAllSchedulesReq=false`
+
+**Flow:**
+1. System generates all scheduled doses in date range
+2. Filters to show only future schedules (scheduled time > current time)
+3. Groups by next time slot (Morning/Afternoon/Evening)
+4. Returns only schedules for the NEXT immediate time slot
+5. Useful for "What's Next?" dashboard widget
+
+**Example:**
+- Current time: 2024-01-15 10:00 (Morning time slot passed)
+- Next time slot: Evening (20:00)
+- Returns: All evening medications scheduled for today and future dates
+
+**Handled By:**
+- `MedicationService.getUpcomingSchedules()`
+
+---
+
+### Scenario 16: Getting Upcoming Schedules (All Future Schedules)
+
+**Trigger:** User calls `/upcoming-schedules` with `isAllSchedulesReq=true`
+
+**Flow:**
+1. System generates all scheduled doses in date range
+2. Filters to show only future schedules
+3. Returns ALL upcoming schedules (not just next time slot)
+4. Useful for "Upcoming This Week" page
+
+**Handled By:**
+- `MedicationService.getUpcomingSchedules()`
+
+---
+
+### Scenario 17: Getting Missed Schedules
+
+**Trigger:** User calls `POST /api/medications/missed-schedules`
+
+**Flow:**
+1. System generates all scheduled doses in date range
+2. Filters to show only missed schedules:
+   - Scheduled time has passed (compared to current time)
+   - Intake record does NOT exist for that date + time slot
+3. Returns list of missed schedule entries
+4. Calculates summary: most missed medication, total count
+
+**Example:**
+- Date range: 2024-01-10 to 2024-01-15
+- Found 5 missed doses:
+  - Aspirin - 2024-01-10 Morning (not logged)
+  - Aspirin - 2024-01-12 Evening (not logged)
+  - Metformin - 2024-01-11 Morning (not logged)
+  - Metformin - 2024-01-13 Morning (not logged)
+  - Metformin - 2024-01-14 Evening (not logged)
+- Most missed: Metformin (3 times)
+
+**Handled By:**
+- `MedicationService.getMissedSchedules()`
+
+---
+
+### Scenario 18: Medication Already Taken (Skip Reminder)
+
+**Trigger:** ReminderSchedulerService finds pending reminder, but medication already logged
+
+**Flow:**
+1. ReminderSchedulerService finds pending MEDICATION_REMINDER delivery
+2. Checks PatientMedicationIntake table
+3. Finds intake record exists for scheduled date and time slot
+4. Skips notification (medication already taken)
+5. Marks delivery as SENT
+
+**Example:**
+- Medication: Aspirin 100mg
+- Scheduled: 2024-01-15 08:00
+- User logged intake at 07:55 (before reminder)
+- System skips reminder notification
+
+**Handled By:**
+- `ReminderNotificationService.sendMedicationReminder()` (checks intake before sending)
+
+---
+
+### Scenario 19: Timezone Handling (User Timezone Update)
+
+**Trigger:** User calls endpoint with timezone different from stored user timezone
+
+**Flow:**
+1. System receives request with timezone parameter
+2. Checks user's stored timezone
+3. If user timezone is null/empty → Updates to request timezone
+4. If user timezone is UTC → Updates to request timezone (assumes UTC is default)
+5. If user timezone is already set (non-UTC) → No update
+6. All date/time operations use user's timezone
+
+**Why:** Ensures reminders and schedules are calculated in user's local timezone
+
+**Handled By:**
+- `MedicationResource.updateUserTimezoneIfNeeded()` (called in intake-stats and intake-count-summary endpoints)
+
+---
+
+### Scenario 20: Schedule History Tracking
+
+**Trigger:** Schedule is created, updated, or deleted
+
+**Flow:**
+1. System creates history record in `patient_medication_schedule_history` table
+2. History record includes:
+   - Operation type (INSERT, UPDATE, CREATE_NEW, DELETE, REPLACED)
+   - Full schedule state at time of operation
+   - Timestamp and user who performed operation
+3. History records are preserved for audit trail
+
+**Operations Tracked:**
+- **INSERT**: New schedule created
+- **UPDATE**: Direct update (favorite status only)
+- **CREATE_NEW**: New schedule created to replace old one
+- **DELETE**: Schedule soft-deleted
+- **REPLACED**: Schedule replaced when adding new schedule for same medication
+
+**Handled By:**
+- `PatientMedicationScheduleHistoryService.createHistoryRecord()`
+
+---
+
+### Scenario 21: Favorite Medication Management
+
+**Trigger:** User adds/removes medication from favorites
+
+**Flow - Adding to Favorites:**
+1. User calls `/add` with `isAddToMyMedication=true`
+2. Schedule is created with `isFavorite=true`
+3. Medication appears in `/my-medications` list
+
+**Flow - Removing from Favorites:**
+1. User calls `/remove-my-medication` with scheduleUuid
+2. System finds schedule and gets `patient_medication_id`
+3. System sets `isFavorite=false` for ALL schedules belonging to that `patient_medication_id`
+4. System also sets `active=false` (removes from active lists)
+5. Medication removed from `/my-medications` list
+
+**Why:** All schedules for same medication are updated together (consistency)
+
+**Handled By:**
+- `MedicationService.addMedication()` (sets isFavorite)
+- `MedicationService.removeMyMedication()` (removes favorite status)
+
+---
+
+### Scenario 22: Daily Intake Statistics (Day-by-Day Breakdown)
+
+**Trigger:** User calls `POST /api/medications/daily-intake-stats`
+
+**Flow:**
+1. System generates all scheduled doses for each day in date range
+2. For each day:
+   - Calculates scheduled, taken, missed counts
+   - Calculates adherence percentage for that day
+   - Optionally provides per-medication breakdown
+3. Returns array of daily statistics
+
+**Example:**
+```json
+{
+  "dailyStats": [
+    {
+      "date": "2024-01-15",
+      "totalScheduled": 3,
+      "totalTaken": 3,
+      "totalMissed": 0,
+      "adherencePercentage": 100.0
+    },
+    {
+      "date": "2024-01-16",
+      "totalScheduled": 3,
+      "totalTaken": 2,
+      "totalMissed": 1,
+      "adherencePercentage": 66.67
+    }
+  ]
+}
+```
+
+**Handled By:**
+- `MedicationService.getDailyMedicationIntakeStats()`
+
+---
+
+### Scenario 23: Combined Intake Summary (Dashboard View)
+
+**Trigger:** User calls `POST /api/medications/intake-count-summary` for dashboard
+
+**Flow:**
+1. System calculates adherence statistics (like `/intake-stats`)
+2. System gets upcoming schedules (like `/upcoming-schedules`)
+3. System gets missed schedules (like `/missed-schedules`)
+4. Combines all three into single optimized response
+5. Returns only essential fields (reduced payload size)
+
+**Benefits:**
+- Single API call instead of three
+- 60% less data than calling three endpoints separately
+- All dashboard data in one response
+
+**Handled By:**
+- `MedicationService.getIntakeCountSummary()`
+
+---
+
+### Scenario 24: Schedule Overview (All Categories)
+
+**Trigger:** User calls `POST /api/medications/schedule-overview`
+
+**Flow:**
+1. System gets all schedules (like `/schedule-list`)
+2. System categorizes schedules:
+   - **allSchedules**: Complete list (past + present + future)
+   - **upcomingSchedules**: Future doses only
+   - **missedSchedules**: Past doses not taken
+3. Returns categorized schedule lists with summary statistics
+
+**Use Case:** Schedule overview page showing all schedules organized by category
+
+**Handled By:**
+- `MedicationService.getScheduleOverview()`
+
+---
+
+### Scenario 25: Schedule Editing Workflow (Get → Edit → Update)
+
+**Trigger:** User wants to edit an existing schedule
+
+**Flow:**
+1. User clicks "Edit" button in UI
+2. Frontend calls `GET /api/medications/schedule/{scheduleUuid}`
+3. System returns schedule details (pre-fills form)
+4. User modifies desired fields
+5. Frontend calls `PUT /api/medications/edit-schedule` with updated values
+6. System validates and updates schedule (or creates new if needed)
+7. Returns update confirmation
+
+**Example - Get Schedule:**
+```http
+GET /api/medications/schedule/abc-123-def-456
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "scheduleUuid": "abc-123-def-456",
+    "medicationName": "Aspirin",
+    "medicationBrand": "Bayer",
+    "startDate": "2024-01-15",
+    "endDate": "2024-03-15",
+    "morning": true,
+    "morningTime": "08:00",
+    "isAfterMeal": true,
+    "doseDescription": "100mg",
+    "daysOfWeek": ["Mon", "Wed", "Fri"]
+  }
+}
+```
+
+**Example - Update Schedule:**
+```http
+PUT /api/medications/edit-schedule
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "scheduleUuid": "abc-123-def-456",
+  "endDate": "2024-06-15",
+  "evening": true,
+  "eveningTime": "20:00"
+}
+```
+
+**Handled By:**
+- `MedicationService.getScheduleForEdit()`
+- `MedicationService.updateMedicationSchedule()`
+
+---
+
+## Technical Implementation Details
+
+### Database Schema
+
+**Key Tables:**
+- `medication` - Master medication catalog
+- `patient_medication` - User's medication links (many-to-many)
+- `patient_medication_schedule` - Medication schedules
+- `patient_medication_intake` - Intake tracking records
+- `patient_medication_schedule_history` - Schedule change history
+- `reminder` - Reminder schedules (linked to medication schedules)
+- `reminder_delivery` - Reminder delivery records (one per occurrence)
+
+### Schedule Generation Logic
+
+**Date Expansion:**
+- **DAILY Pattern**: Generates all dates in range (respecting startDate/endDate)
+- **CUSTOM Pattern**: Generates only dates matching daysOfWeek (e.g., "mon,wed,fri")
+- Uses `MedicationScheduleDateUtil.generateMedicationDates()` for date generation
+
+**Time Slot Expansion:**
+- Each schedule can have multiple time slots (morning, afternoon, evening)
+- System creates separate entries for each active time slot
+- Example: Morning + Evening schedule for 5 days = 10 schedule entries
+
+### Intake Tracking Logic
+
+**Record Structure:**
+- One `PatientMedicationIntake` record per schedule per date
+- Three boolean flags: `isMorning`, `isAfterNoon`, `isEvening`
+- Three timestamp fields: `morningTime`, `afternoonTime`, `eveningTime`
+
+**Tracking Behavior:**
+- If intake record doesn't exist → Creates new record, sets time slot flag
+- If intake record exists → Updates only the specific time slot flag
+- Timestamps recorded when marked as taken (UTC)
+- Timestamps cleared when marked as not taken
+
+### Reminder Integration Points
+
+**Automatic Reminder Creation:**
+- `/add` endpoint → Creates reminder after schedule creation
+- `/create` endpoint → Creates reminder after schedule creation
+- `/edit-schedule` (CREATE_NEW) → Creates reminder for new schedule
+
+**Automatic Reminder Deletion:**
+- `/add` (replacing schedule) → Deletes old reminder
+- `/edit-schedule` (CREATE_NEW) → Deletes old reminder
+- Schedule soft-delete → Reminder cleanup (via scheduler)
+
+**Reminder Configuration:**
+- RRULE extracted from schedule's `daysOfWeek` field
+- Timings extracted from schedule's time slot fields
+- Metadata includes medication name and dose description
+
+### Error Handling
+
+**Validation Errors:**
+- Missing required fields → 400 Bad Request
+- Invalid date formats → 400 Bad Request
+- Schedule not found → 404 Not Found
+- Permission denied → 400 Bad Request
+
+**Reminder Creation Failures:**
+- Logged but don't fail main operation
+- Schedule creation succeeds even if reminder creation fails
+- Reminders can be regenerated later if needed
+
+**Intake Tracking Failures:**
+- Database errors → 500 Internal Server Error
+- Invalid schedule UUID → 400 Bad Request
+- Invalid date format → 400 Bad Request
+
+### Performance Considerations
+
+**Schedule List Optimization:**
+- When `fromDate == toDate`, `schedulesByDate` is null (optimization)
+- `allSchedules` always provided (flat list)
+
+**Combined Endpoints:**
+- `/intake-count-summary` and `/schedule-overview` reduce API calls
+- 60% payload reduction compared to calling separate endpoints
+
+**Reminder Delivery Generation:**
+- Generates next N occurrences (configurable, typically 20-30)
+- Regenerated when reminder is updated
+- Scheduler processes deliveries incrementally
+
+---
+
+## Notes for Developers
+
+1. **Reminder Integration**: Reminders are automatically managed - don't manually create/delete reminders
+2. **Schedule History**: All schedule changes are tracked in history table for audit
+3. **Soft Delete**: Schedules are soft-deleted (active=false), not hard-deleted
+4. **Intake Preservation**: Intake records are never deleted, even when schedule is deleted
+5. **Timezone Handling**: Always use user's timezone for date/time calculations
+6. **Reminder Failures**: Reminder creation/deletion failures are logged but non-blocking
+7. **Batch Processing**: Multiple medications at same time are batched into single notification
+8. **Schedule Replacement**: Adding new schedule for same medication replaces old schedule
+9. **Favorite Status**: Removing favorite status affects ALL schedules for that medication
+10. **Date Formats**: Supports both `dd-MM-yyyy` and `yyyy-MM-dd` formats
+
+---
+
+**API Version:** 2.6
+**Last Updated:** 2024  
 **Status:** Production Ready
 
 **Changelog:**
+- v2.6 (2024): Added comprehensive reminder system integration documentation and scenarios section
 - v2.5 (Oct 21, 2025): Added `/intake-count-summary` and `/schedule-overview` endpoints; Combined endpoints for optimized dashboard views with 59-60% data reduction
 - v2.4 (Oct 21, 2025): Removed My Medication Menu List feature (deprecated); `isAddToMyMedication` field reserved for future use
 - v2.2 (Oct 16, 2025): Added `/schedule/{scheduleUuid}` (DELETE) endpoint for medication schedule deletion; Implements soft delete to preserve medication history
@@ -3916,3 +4847,4 @@ For issues or questions:
 - Verify authentication token is valid and included
 - Ensure required fields are provided
 - Verify date and time formats are correct
+- Check user timezone is properly configured

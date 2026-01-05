@@ -1,5 +1,69 @@
 # Message Template Format Migration - Implementation Documentation
 
+## Table of Contents
+
+### Quick Navigation
+- [Overview](#overview)
+- [Scenarios Handled](#scenarios-handled)
+- [Endpoints Documentation](#endpoints-using-messagetemplate-functionality)
+- [Backend Implementation](#backend-implementation-details)
+- [Frontend Requirements](#frontend-team-requirements)
+- [Migration Guide](#migration-path)
+- [Testing](#testing-checklist)
+- [Important Notes](#important-notes)
+- [Summary](#summary)
+- [Contact](#contact)
+
+### Detailed Sections
+
+#### 1. [Overview](#overview)
+   - System changes and backward compatibility
+
+#### 2. [Scenarios Handled](#scenarios-handled)
+   - [Template Creation](#1-template-creation)
+   - [Template Retrieval](#2-template-retrieval)
+   - [Template Update](#3-template-update)
+   - [Template Cloning](#4-template-cloning)
+   - [Message Sending](#5-message-sending)
+
+#### 3. [Endpoints Using MessageTemplate Functionality](#endpoints-using-messagetemplate-functionality)
+   - [POST `/api/campaigns/{companyName}/save-campaign-template`](#1-post-apicampaignscompanynamesave-campaign-template)
+   - [POST `/api/campaigns/{companyName}/{templateId}/{campaignId}/message-templates-details`](#2-post-apicampaignscompanynametemplateidcampaignidmessage-templates-details)
+   - [POST `/api/campaigns/{companyName}/campaign-send-friend-request-list`](#3-post-apicampaignscompanynamecampaign-send-friend-request-list)
+   - [POST `/api/campaigns/{companyName}/campaign-send-friend-request-acknowledgement`](#4-post-apicampaignscompanynamecampaign-send-friend-request-acknowledgement)
+
+#### 4. [Backend Implementation Details](#backend-implementation-details)
+   - [Files Modified](#files-modified)
+   - [Key Logic Changes](#key-logic-changes)
+
+#### 5. [Frontend Team Requirements](#frontend-team-requirements)
+   - [Template Creation/Update Forms](#1-template-creationupdate-forms)
+   - [Template Display/Retrieval](#2-template-displayretrieval)
+   - [Message Sending/Selection](#3-message-sendingselection)
+   - [Error Handling](#4-error-handling)
+
+#### 6. [Migration Path](#migration-path)
+   - [For Existing Templates (Old Format)](#for-existing-templates-old-format)
+   - [For New Templates](#for-new-templates)
+   - [Format Transition](#format-transition)
+
+#### 7. [Testing Checklist](#testing-checklist)
+   - [Backend Testing](#backend-testing-)
+   - [Frontend Testing](#frontend-testing-to-be-done)
+
+#### 8. [Important Notes](#important-notes)
+   - [Backward Compatibility](#backward-compatibility)
+   - [Database Schema](#database-schema)
+   - [Performance](#performance)
+
+#### 9. [Summary](#summary)
+   - Key points and implementation status
+
+#### 10. [Contact](#contact)
+   - Reference files and resources
+
+---
+
 ## Overview
 
 This document describes the implementation of the new single-message format for message templates. The system has been updated to:

@@ -574,16 +574,16 @@ This document describes the implementation of the new single-message format for 
 - ✅ **Old format templates are automatically transformed to new format** during retrieval
 - ✅ **Transformation Logic** (Implemented in `transformOldFormatToNewFormat()` method):
   - **Series A** templates → Combined into **CALL_TO_ACTION** content
-    - Combines: Call to Action A + Message A + Greeting A (in that order, space-separated)
+    - Combines: Greeting A + Message A + Call to Action A (in that order, space-separated)
   - **Series B** templates → Combined into **MESSAGE** content
-    - Combines: Call to Action B + Message B + Greeting B (in that order, space-separated)
+    - Combines: Greeting B + Message B + Call to Action B (in that order, space-separated)
   - **Series C** templates → Combined into **GREETING** content
-    - Combines: Call to Action C + Message C + Greeting C (in that order, space-separated)
+    - Combines: Greeting C + Message C + Call to Action C (in that order, space-separated)
   - Each combined content becomes a single message template with `seriestype: null`
 - ✅ Response always returns new format (1 entry per message type with `seriestype: null`)
 - ✅ Old format data in database is seamlessly transformed - no breaking changes for frontend
 - ✅ Format detection and transformation is automatic
-- ✅ Transformation preserves content order: CALL_TO_ACTION → MESSAGE → GREETING
+- ✅ Transformation preserves content order: GREETING → MESSAGE → CALL_TO_ACTION
 
 ---
 

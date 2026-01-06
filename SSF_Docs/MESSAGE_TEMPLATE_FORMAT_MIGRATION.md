@@ -83,9 +83,9 @@ This document describes the implementation of the new single-message format for 
 
 ### 2. Template Retrieval
 - ✅ **Old format templates**: Automatically transformed to new format using transformation logic:
-  - **Series A**: Call to Action A + Message A + Greeting A → **Call To Action Content**
-  - **Series B**: Call to Action B + Message B + Greeting B → **Message Content**
-  - **Series C**: Call to Action C + Message C + Greeting C → **Greeting Content**
+  - **Series A**: Greeting A + Message A + Call to Action A → **Call To Action Content**
+  - **Series B**: Greeting B + Message B + Call to Action B → **Message Content**
+  - **Series C**: Greeting C + Message C + Call to Action C → **Greeting Content**
 - ✅ **New format templates**: Returned as-is (single message with null seriesType)
 - ✅ **Transformation is automatic** - Old format data is seamlessly converted to new format
 
@@ -461,9 +461,9 @@ This document describes the implementation of the new single-message format for 
 // ALL RESPONSES ARE IN NEW FORMAT (Old format templates are automatically transformed)
 
 // If old format exists in database, it is transformed:
-// Series A: Call to Action A + Message A + Greeting A → Call To Action Content
-// Series B: Call to Action B + Message B + Greeting B → Message Content
-// Series C: Call to Action C + Message C + Greeting C → Greeting Content
+// Series A: Greeting A + Message A + Call to Action A → Call To Action Content
+// Series B: Greeting B + Message B + Call to Action B → Message Content
+// Series C: Greeting C + Message C + Call to Action C → Greeting Content
 
 // NEW FORMAT RESPONSE (Always returned, even if old format exists in DB)
 {
@@ -712,9 +712,9 @@ public static final Set<String> VALID_SERIES_TYPES = Set.of(A_MESSAGE_SERIES, B_
 #### 3. Template Retrieval
 - **Automatic Transformation**: Old format templates are transformed to new format
 - **Transformation Logic**:
-  - Series A (Call to Action A + Message A + Greeting A) → CALL_TO_ACTION content
-  - Series B (Call to Action B + Message B + Greeting B) → MESSAGE content
-  - Series C (Call to Action C + Message C + Greeting C) → GREETING content
+  - Series A (Greeting A + Message A + Call to Action A) → CALL_TO_ACTION content
+  - Series B (Greeting B + Message B + Call to Action B) → MESSAGE content
+  - Series C (Greeting C + Message C + Call to Action C) → GREETING content
 - Always returns new format (1 entry per message type with `seriestype: null`)
 - Old format data in database is seamlessly converted - no breaking changes
 
@@ -851,7 +851,7 @@ messageTemplate.seriesTypeTemplates.forEach(seriesTemplate => {
 - [x] Clone templates (new format only) - ✅ PASS
 - [x] Message sending validation (null and A, B, C) - ✅ PASS
 - [x] Format validation errors (clear error messages) - ✅ PASS
-- [x] Transformation logic (Series A/B/C → Call To Action/Message/Greeting) - ✅ PASS
+- [x] Transformation logic (Series A/B/C → Greeting/Message/Call To Action) - ✅ PASS
 - [x] Deletion of orphaned templates - ✅ PASS
 - [x] CampaignMessageTemplate association management - ✅ PASS
 
@@ -900,7 +900,7 @@ messageTemplate.seriesTypeTemplates.forEach(seriesTemplate => {
 **Key Points**:
 - **Create/Update**: ONLY new format accepted (old format rejected)
 - **Retrieval**: Old format templates automatically transformed to new format
-- **Transformation Logic**: Series A/B/C → Call To Action/Message/Greeting (combined content)
+- **Transformation Logic**: Series A/B/C → Greeting/Message/Call To Action (combined content)
 - **Backward Compatibility**: Seamless - Old format data transformed on-the-fly, no breaking changes
 
 All changes are production-ready with proper error handling, validation, and automatic transformation. The system enforces new format for create/update while seamlessly transforming old format data during retrieval.
